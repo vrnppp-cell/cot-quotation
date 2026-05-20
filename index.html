@@ -375,16 +375,16 @@ async function loadAll(){
   try{
     const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
     const B=SB_URL+'/rest/v1/';
+    const safeGet=async(url)=>{try{const r=await fetch(url,{headers:H});if(!r.ok){console.error('GET failed:',url,r.status);return [];}const d=await r.json();return Array.isArray(d)?d:[];}catch(e){console.error(e);return [];}};
     const [pr,qt,it,cat,ps,psi]=await Promise.all([
-      fetch(B+'qt_projects?select=*&order=created_at.asc',{headers:H}).then(r=>r.json()),
-      fetch(B+'qt_quotations?select=*&order=created_at.asc',{headers:H}).then(r=>r.json()),
-      fetch(B+'qt_items?select=*&order=sort_order.asc',{headers:H}).then(r=>r.json()),
-      fetch(B+'qt_catalogue?select=*&order=part.asc,name.asc',{headers:H}).then(r=>r.json()),
-      fetch(B+'qt_presets?select=*&order=name.asc',{headers:H}).then(r=>r.json()),
-      fetch(B+'qt_preset_items?select=*&order=sort_order.asc',{headers:H}).then(r=>r.json())
+      safeGet(B+'qt_projects?select=*&order=created_at.asc'),
+      safeGet(B+'qt_quotations?select=*&order=created_at.asc'),
+      safeGet(B+'qt_items?select=*&order=sort_order.asc'),
+      safeGet(B+'qt_catalogue?select=*&order=name.asc'),
+      safeGet(B+'qt_presets?select=*&order=name.asc'),
+      safeGet(B+'qt_preset_items?select=*&order=sort_order.asc')
     ]);
-    projects=Array.isArray(pr)?pr:[];quotations=Array.isArray(qt)?qt:[];items=Array.isArray(it)?it:[];
-    catalogue=Array.isArray(cat)?cat:[];presets=Array.isArray(ps)?ps:[];presetItems=Array.isArray(psi)?psi:[];
+    projects=pr;quotations=qt;items=it;catalogue=cat;presets=ps;presetItems=psi;
     setSyncDot(true);
     renderSidebar();
     if(activeQTId) renderQT();
