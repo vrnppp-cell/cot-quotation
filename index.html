@@ -508,11 +508,11 @@ function renderQT(){
         <input class="ie" value="${item.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchItemLocal('${item.id}','item_person',this.value)"/>
       </div>
 <div></div>
-      <div style="padding-top:2px"><input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)"/></div>
-      <div style="padding-top:2px"><span class="it-cost-txt">${isOwn?'<span style="font-size:10px;color:var(--purple)">COT</span>':fmt(item.cost)}</span></div>
-      <div><input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/></div>
-      <div><input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/></div>
-      <div class="it-total-txt" style="padding-top:2px">${fmt(tot)}</div>
+      <div style="padding:5px 6px;text-align:right"><input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)" style="width:40px"/></div>
+      <div><span class="it-cost-txt">${isOwn?'<span style="font-size:10px;color:var(--purple)">COT</span>':fmt(item.cost)}</span></div>
+      <div style="padding:5px 6px"><input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/></div>
+      <div style="padding:5px 6px"><input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/></div>
+      <div class="it-total-txt">${fmt(tot)}</div>
       <div class="it-actions">
         <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="COT item">C</button>
         <button class="btn danger sm" onclick="delItem('${item.id}')">✕</button>
@@ -719,7 +719,7 @@ function openAddItem(section,isExtra){
     <div class="mf"><label>Markup % (คำนวณราคาขายให้)</label><input id="ai-mk" type="number" value="${defMk}" oninput="calcMkP()"/></div>
 
     </div>
-    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveAddItem('${section}',${isExtra})">เพิ่ม</button></div>`);
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn ghost" onclick="saveAddItemAndCat('${section}',${isExtra})" title="เพิ่มรายการและบันทึกลง Catalogue">+ บันทึกลง Catalogue</button><button class="btn primary" onclick="saveAddItem('${section}',${isExtra})">เพิ่มใบ QT</button></div>`);
 }
 function filterCP(q,sec,isExtra){
   const cats=(isExtra?catalogue:catalogue.filter(c=>c.part===sec)).filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
@@ -834,7 +834,7 @@ function renderCat(){
   const wrap=document.getElementById('cat-wrap');if(!wrap)return;
   if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
   wrap.innerHTML=`<div class="cat-table">
-    <div class="cat-head"><div>ชื่อ</div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ</div><div style="text-align:right">จัดการ</div></div>
+    <div class="cat-head"><div>ชื่อรายการ</div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ / รายละเอียด</div><div style="text-align:right">จัดการ</div></div>
     ${list.map(c=>`<div class="cat-row">
       <div style="font-weight:500">${c.name}</div>
       <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
