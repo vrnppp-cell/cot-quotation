@@ -188,8 +188,8 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .cat-search{padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;width:180px}
 .cat-search:focus{border-color:var(--forest)}
 .cat-table{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
-.cat-head{display:grid;grid-template-columns:2fr 100px 70px 90px 90px 1fr 80px;gap:4px;padding:6px 12px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
-.cat-row{display:grid;grid-template-columns:2fr 100px 70px 90px 90px 1fr 80px;gap:4px;padding:7px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:12px}
+.cat-head{display:grid;grid-template-columns:85px 1.5fr 90px 65px 78px 78px 1fr 68px;gap:4px;padding:6px 12px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
+.cat-row{display:grid;grid-template-columns:85px 1.5fr 90px 65px 78px 78px 1fr 68px;gap:4px;padding:6px 12px;border-bottom:1px solid var(--border);align-items:center;font-size:12px}
 .cat-row:last-child{border-bottom:none}
 .cat-row:hover{background:var(--bg)}
 .part-badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
@@ -742,6 +742,7 @@ function filterCP(q,sec,isExtra){
 }
 function fillCat(id){
   const c=catalogue.find(x=>x.id===id);if(!c)return;
+  document.getElementById('ai-role').value=c.item_role||'';
   document.getElementById('ai-name').value=c.name;
   document.getElementById('ai-unit').value=c.unit||'';
   document.getElementById('ai-cost').value=c.cost_min;
@@ -846,16 +847,17 @@ function renderCat(){
   const wrap=document.getElementById('cat-wrap');if(!wrap)return;
   if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
   wrap.innerHTML=`<div class="cat-table">
-    <div class="cat-head"><div>ชื่อรายการ</div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ / รายละเอียด</div><div style="text-align:right">จัดการ</div></div>
+    <div class="cat-head"><div>หมวด</div><div>ชื่อรายการ</div><div>ตำแหน่ง/ประเภท</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ / รายละเอียด</div><div style="text-align:right">จัดการ</div></div>
     ${list.map(c=>`<div class="cat-row">
-      <div style="font-weight:500">${c.name}</div>
       <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
-      <div><input class="ci" value="${c.unit||''}" onblur="patchCatTxt('${c.id}','unit',this.value)" style="text-align:left"/></div>
-      <div><input class="ci num" data-raw="${c.cost_min||0}" data-id="${c.id}" data-field="cost_min" value="${fmt(c.cost_min||0)}" onfocus="catFocus(this)" onblur="catBlur(this)" style="width:80px"/></div>
-      <div><input class="ci num" data-raw="${c.cost_max||0}" data-id="${c.id}" data-field="cost_max" value="${fmt(c.cost_max||0)}" onfocus="catFocus(this)" onblur="catBlur(this)" style="width:80px"/></div>
-      <div><input class="ci" value="${c.notes||''}" onblur="patchCatTxt('${c.id}','notes',this.value)" style="text-align:left"/></div>
-      <div style="display:flex;gap:4px;justify-content:flex-end">
-        <button class="btn ghost sm" onclick="cloneCat('${c.id}')">📋</button>
+      <div style="font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.name}</div>
+      <div><input class="ci" value="${c.item_role||''}" onblur="patchCatTxt('${c.id}','item_role',this.value)" placeholder="ตำแหน่ง..."/></div>
+      <div><input class="ci" value="${c.unit||''}" onblur="patchCatTxt('${c.id}','unit',this.value)" placeholder="day..."/></div>
+      <div><input class="ci num" data-raw="${c.cost_min||0}" data-id="${c.id}" data-field="cost_min" value="${fmt(c.cost_min||0)}" onfocus="catFocus(this)" onblur="catBlur(this)"/></div>
+      <div><input class="ci num" data-raw="${c.cost_max||0}" data-id="${c.id}" data-field="cost_max" value="${fmt(c.cost_max||0)}" onfocus="catFocus(this)" onblur="catBlur(this)"/></div>
+      <div><input class="ci" value="${c.notes||''}" onblur="patchCatTxt('${c.id}','notes',this.value)" placeholder="หมายเหตุ..."/></div>
+      <div style="display:flex;gap:3px;justify-content:flex-end">
+        <button class="btn ghost sm" onclick="cloneCat('${c.id}')" title="Clone">📋</button>
         <button class="btn danger sm" onclick="delCat('${c.id}')">✕</button>
       </div>
     </div>`).join('')}</div>`;
@@ -887,7 +889,7 @@ function openAddCat(){
 }
 async function doAddCat(){
   const name=document.getElementById('cn').value.trim();if(!name)return;
-  const c=await dbPost('qt_catalogue',{name,part:document.getElementById('cp').value,unit:document.getElementById('cu').value,cost_min:+document.getElementById('cmin').value||0,cost_max:+document.getElementById('cmax').value||0,notes:document.getElementById('cnotes').value});
+  const c=await dbPost('qt_catalogue',{name,part:document.getElementById('cp').value,unit:document.getElementById('cu').value,item_role:document.getElementById('cr')?.value||'',cost_min:+document.getElementById('cmin').value||0,cost_max:+document.getElementById('cmax').value||0,notes:document.getElementById('cnotes').value});
   if(c)catalogue.push(c);closeModal();renderCat();
 }
 
@@ -1004,6 +1006,7 @@ function filterPICP(q,sec){
 }
 function fillCatPI(id){
   const c=catalogue.find(x=>x.id===id);if(!c)return;
+  document.getElementById('pi-role').value=c.item_role||'';
   document.getElementById('pi-name').value=c.name;
   document.getElementById('pi-unit').value=c.unit||'';
   document.getElementById('pi-cost').value=c.cost_min;
