@@ -500,9 +500,9 @@ function renderQT(){
     const displayName=(item.item_role?item.item_role+' — ':'')+item.name+(item.item_person?' ('+item.item_person+')':'');
     const displayDetail=item.detail||'';
     if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}">
-      <div class="it-name-col">
-        <input class="ie name-ie" value="${item.item_role||''}" placeholder="ตำแหน่ง" onblur="patchItemLocal('${item.id}','item_role',this.value)" style="font-size:11px;color:var(--hint);font-weight:500"/>
-        <input class="ie name-ie" value="${item.name||''}" placeholder="ชื่อรายการ *" onblur="patchItemLocal('${item.id}','name',this.value)" style="font-weight:500"/>
+      <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+        <div style="font-size:10px;color:var(--hint);font-weight:500;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${item.item_role||'&nbsp;'}</div>
+        <input class="ie" value="${item.name||''}" placeholder="ชื่อรายการ *" onblur="patchItemLocal('${item.id}','name',this.value)" style="font-weight:500;font-size:12px;padding:1px 4px"/>
       </div>
       <input class="ie" value="${item.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchItemLocal('${item.id}','item_person',this.value)" style="font-size:12px"/>
       <input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)" style="width:100%"/>
@@ -718,6 +718,21 @@ function openAddItem(section,isExtra){
     </div>
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn ghost" onclick="saveAddItemAndCat('${section}',${isExtra})" title="เพิ่มรายการและบันทึกลง Catalogue">+ บันทึกลง Catalogue</button><button class="btn primary" onclick="saveAddItem('${section}',${isExtra})">เพิ่มใบ QT</button></div>`);
 }
+async function saveAddItemAndCat(section,isExtra){
+  const name=document.getElementById('ai-name').value.trim();
+  if(!name)return alert('กรุณาระบุชื่อ');
+  const cost=+document.getElementById('ai-cost').value||0;
+  const cat=await dbPost('qt_catalogue',{
+    name,
+    part:isExtra?'Pre-Production':section,
+    unit:document.getElementById('ai-unit').value||'',
+    cost_min:cost,cost_max:cost,
+    notes:document.getElementById('ai-detail').value||''
+  });
+  if(cat)catalogue.push(cat);
+  await saveAddItem(section,isExtra);
+}
+
 function filterCP(q,sec,isExtra){
   const cats=(isExtra?catalogue:catalogue.filter(c=>c.part===sec)).filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
   document.getElementById('cp-list').innerHTML=cats.map(c=>`<div class="cp-row" onclick="fillCat('${c.id}')">
