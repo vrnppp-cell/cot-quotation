@@ -491,7 +491,7 @@ function renderQT(){
   const margin=beforeVat>0?((profit/beforeVat)*100).toFixed(1):0;
 
   const renderHead=()=>isInt
-    ?`<div class="it-head g-int" style="font-size:10px"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div>In/Out</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
+    ?`<div class="it-head g-int" style="font-size:10px"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
     :`<div class="it-head g-cli"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ราคา/unit</div><div style="text-align:right">รวม</div></div>`;
 
   const renderItem=(item)=>{
@@ -507,12 +507,7 @@ function renderQT(){
       <div class="it-cell">
         <input class="ie" value="${item.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchItemLocal('${item.id}','item_person',this.value)"/>
       </div>
-      <div>
-        <div class="io-toggle">
-          <button class="io-opt ${ioType==='inhouse'?'active-in':''}" onclick="setIO('${item.id}','inhouse',this)">In</button>
-          <button class="io-opt ${ioType==='outsource'?'active-out':''}" onclick="setIO('${item.id}','outsource',this)">Out</button>
-        </div>
-      </div>
+<div></div>
       <div><input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)"/></div>
       <div><span class="it-cost-txt">${isOwn?'<span style="font-size:10px;color:var(--purple)">COT</span>':fmt(item.cost)}</span></div>
       <div><input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/></div>
@@ -722,9 +717,7 @@ function openAddItem(section,isExtra){
       <div class="mf"><label>ราคาขาย/unit</label><input id="ai-price" type="number" value="0"/></div>
     </div>
     <div class="mf"><label>Markup % (คำนวณราคาขายให้)</label><input id="ai-mk" type="number" value="${defMk}" oninput="calcMkP()"/></div>
-    <div class="mf"><label>Inhouse / Outsource</label>
-      <select id="ai-io"><option value="inhouse">Inhouse</option><option value="outsource">Outsource</option></select>
-    </div>
+
     </div>
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveAddItem('${section}',${isExtra})">เพิ่ม</button></div>`);
 }
@@ -764,7 +757,7 @@ async function saveAddItem(section,isExtra){
     unit:document.getElementById('ai-unit').value,
     qty:+document.getElementById('ai-qty').value||1,
     cost,price,markup_pct:mk,
-    io_type:document.getElementById('ai-io').value,
+
     is_extra:isExtra,is_cot:false,sort_order:maxOrder
   });
   if(item)qItems.push(item);closeModal();renderQT();
@@ -838,8 +831,8 @@ function renderCat(){
       <div style="font-weight:500">${c.name}</div>
       <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
       <div><input class="ci" value="${c.unit||''}" onblur="patchCatTxt('${c.id}','unit',this.value)" style="text-align:left"/></div>
-      <div><input class="ci num" value="${fmt(c.cost_min||0)}" onfocus="this.value='${c.cost_min||0}'" onblur="patchCat('${c.id}','cost_min',+this.value);this.value=fmt(+this.value||0)" style="width:80px"/></div>
-      <div><input class="ci num" value="${fmt(c.cost_max||0)}" onfocus="this.value='${c.cost_max||0}'" onblur="patchCat('${c.id}','cost_max',+this.value);this.value=fmt(+this.value||0)" style="width:80px"/></div>
+      <div><input class="ci num" data-val="${c.cost_min||0}" value="${fmt(c.cost_min||0)}" onfocus="this.value=this.dataset.val" onblur="this.dataset.val=this.value;patchCat('${c.id}','cost_min',+this.value);this.value=fmt(+this.value||0)" style="width:80px"/></div>
+      <div><input class="ci num" data-val="${c.cost_max||0}" value="${fmt(c.cost_max||0)}" onfocus="this.value=this.dataset.val" onblur="this.dataset.val=this.value;patchCat('${c.id}','cost_max',+this.value);this.value=fmt(+this.value||0)" style="width:80px"/></div>
       <div><input class="ci" value="${c.notes||''}" onblur="patchCatTxt('${c.id}','notes',this.value)" style="text-align:left"/></div>
       <div style="display:flex;gap:4px;justify-content:flex-end">
         <button class="btn ghost sm" onclick="cloneCat('${c.id}')">📋</button>
@@ -898,17 +891,14 @@ function renderPreset(){
     return `<div class="section-block">
       <div class="section-head ${cls}"><div class="sh-title">${label}</div><div class="sh-total">${si.length} รายการ</div></div>
       <div>
-        <div class="it-head g-int"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div>In/Out</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
+        <div class="it-head g-int"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
         ${si.map(i=>`<div class="it-row g-int">
           <div class="it-cell">
             <input class="ie role-txt" value="${i.item_role||''}" placeholder="ตำแหน่ง" onblur="patchPI('${i.id}','item_role',this.value)"/>
             <input class="ie sm-txt" value="${i.name||''}" placeholder="ชื่อรายการ" onblur="patchPI('${i.id}','name',this.value)"/>
           </div>
           <div><input class="ie" value="${i.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchPI('${i.id}','item_person',this.value)"/></div>
-          <div><div class="io-toggle">
-            <button class="io-opt ${(i.io_type||'inhouse')==='inhouse'?'active-in':''}" onclick="setPIO('${i.id}','inhouse',this)">In</button>
-            <button class="io-opt ${(i.io_type||'inhouse')==='outsource'?'active-out':''}" onclick="setPIO('${i.id}','outsource',this)">Out</button>
-          </div></div>
+
           <div><input class="ie num" value="${i.qty||1}" onblur="patchPINum('${i.id}','qty',+this.value)"/></div>
           <div class="it-cost-txt">${fmt(i.cost)}</div>
           <div><input class="ie num" value="${i.price||0}" onblur="patchPINum('${i.id}','price',+this.value)"/></div>
