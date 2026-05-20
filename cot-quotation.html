@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>COT Quotation</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --forest:#354B47;--dforest:#1F2E2A;--forest2:#2A3C38;
+  --gold:#C9C79C;--gold2:#A8A67A;--brown:#2A241E;
+  --bg:#F5F5F3;--card:#fff;--card2:#F8F8F6;
+  --text:#111311;--text2:#434343;--muted:#6B7070;--hint:#A8ADA8;
+  --border:#DDE0DC;--border2:#C8CEC8;
+  --green:#1B7A45;--green-bg:#EAF5EE;--green-bd:#A8D8BC;
+  --amber:#8A5C00;--amber-bg:#FAF5E0;--amber-bd:#E0C870;
+  --red:#B01020;--red-bg:#FDECEA;--red-bd:#F0A8A8;
+  --blue:#1A5CB8;--blue-bg:#EEF3FD;--blue-bd:#B8D0F5;
+  --r:10px;--rsm:6px;--rxs:4px;
+  --sh:0 1px 3px rgba(17,19,17,.07);--shmd:0 4px 16px rgba(17,19,17,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6;min-height:100vh}
+
+/* SETUP */
+#setup{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--dforest);padding:2rem}
+.scard{background:var(--card);border-radius:16px;padding:2.5rem;max-width:460px;width:100%;box-shadow:var(--shmd)}
+.slogo{font-family:'IBM Plex Sans Thai',sans-serif;font-size:22px;font-weight:600;color:var(--forest);display:flex;align-items:center;gap:10px;margin-bottom:.5rem}
+.slogo-icon{width:36px;height:36px;background:var(--forest);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+.ssub{color:var(--muted);font-size:13px;margin-bottom:1.5rem}
+.sf{margin-bottom:12px}
+.sf label{display:block;font-size:11px;color:var(--muted);font-weight:600;letter-spacing:.3px;text-transform:uppercase;margin-bottom:4px}
+.sf input{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:13px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;transition:border-color .15s}
+.sf input:focus{border-color:var(--forest)}
+.sbtn{width:100%;padding:11px;background:var(--forest);color:#fff;border:none;border-radius:var(--rsm);font-size:14px;font-weight:500;font-family:'Sarabun',sans-serif;cursor:pointer;margin-top:.5rem}
+.sbtn:hover{background:var(--dforest)}
+.serr{color:var(--red);font-size:12px;margin-top:6px;display:none}
+.snote{font-size:11px;color:var(--hint);text-align:center;margin-top:8px}
+.spinner{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* APP LAYOUT */
+#app{display:none;flex-direction:column;min-height:100vh}
+.topbar{background:var(--forest);padding:0 1.25rem;display:flex;align-items:center;gap:12px;min-height:52px;position:sticky;top:0;z-index:50}
+.tlogo{font-family:'IBM Plex Sans Thai',sans-serif;font-size:15px;font-weight:600;color:#fff;display:flex;align-items:center;gap:7px;flex-shrink:0}
+.tlogo-dot{width:7px;height:7px;border-radius:50%;background:var(--gold)}
+.tnav{display:flex;gap:4px;flex:1}
+.tnavbtn{padding:5px 13px;border-radius:20px;border:1px solid rgba(255,255,255,.2);font-size:12px;font-weight:500;font-family:'Sarabun',sans-serif;cursor:pointer;background:transparent;color:rgba(255,255,255,.65);transition:all .15s;white-space:nowrap}
+.tnavbtn:hover{background:rgba(255,255,255,.1);color:#fff}
+.tnavbtn.active{background:#fff;color:var(--forest);border-color:#fff}
+.tright{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sdot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.2)}
+.sdot.ok{background:#4ADE80}
+.sdot.err{background:#FF6B6B}
+
+/* BUTTONS */
+.btn{padding:6px 14px;border-radius:var(--rsm);border:1.5px solid var(--border);font-size:12px;font-weight:500;font-family:'Sarabun',sans-serif;cursor:pointer;background:var(--card);color:var(--text);display:inline-flex;align-items:center;gap:5px;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg)}
+.btn.primary{background:var(--forest);color:#fff;border-color:var(--forest)}
+.btn.primary:hover{background:var(--dforest)}
+.btn.gold{background:var(--gold);color:var(--brown);border-color:var(--gold)}
+.btn.gold:hover{background:var(--gold2)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{background:var(--bg);color:var(--text)}
+.btn.danger{color:var(--red);border-color:transparent}
+.btn.danger:hover{background:var(--red-bg)}
+.btn.sm{padding:4px 10px;font-size:11px}
+.topbtn{padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.2);font-size:12px;font-weight:500;font-family:'Sarabun',sans-serif;cursor:pointer;background:rgba(255,255,255,.1);color:#fff;transition:all .15s}
+.topbtn:hover{background:rgba(255,255,255,.2)}
+.topbtn.gold{background:var(--gold);color:var(--brown);border-color:var(--gold)}
+
+/* PAGES */
+.page{display:none;flex:1}
+.page.active{display:flex}
+
+/* QT PAGE */
+.qt-layout{display:grid;grid-template-columns:220px 1fr;gap:0;flex:1;min-height:0}
+
+/* SIDEBAR */
+.sidebar{background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;padding:.75rem}
+.sb-section{margin-bottom:1rem}
+.sb-label{font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;padding:0 4px;margin-bottom:6px}
+.proj-item{display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:var(--rsm);font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:2px;transition:all .15s}
+.proj-item:hover{background:var(--bg);color:var(--text)}
+.proj-item.active{background:#EAF0EE;color:var(--forest);font-weight:500}
+.proj-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;background:var(--forest)}
+.proj-meta{font-size:10px;color:var(--hint);margin-left:auto}
+.ver-item{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:var(--rsm);font-size:12px;color:var(--muted);cursor:pointer;margin-bottom:2px;transition:all .15s}
+.ver-item:hover{background:var(--bg);color:var(--text)}
+.ver-item.active{background:#EAF0EE;color:var(--forest);font-weight:500}
+.dashed-btn{width:100%;padding:5px 8px;border:1px dashed var(--border2);border-radius:var(--rsm);font-size:11px;color:var(--hint);background:transparent;cursor:pointer;text-align:center;margin-top:4px}
+.dashed-btn:hover{border-color:var(--forest);color:var(--forest)}
+
+/* QT MAIN */
+.qt-main{display:flex;flex-direction:column;overflow-y:auto;padding:1rem}
+.qt-header-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1rem;margin-bottom:.75rem;box-shadow:var(--sh)}
+.qt-title-row{display:flex;align-items:center;gap:8px;margin-bottom:.875rem}
+.qt-title-inp{font-size:15px;font-weight:500;color:var(--text);border:none;background:transparent;outline:none;flex:1;font-family:'Sarabun',sans-serif;padding:2px 4px;border-radius:4px}
+.qt-title-inp:hover{background:var(--bg)}
+.qt-title-inp:focus{background:var(--bg)}
+.ver-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:4px;background:#EAF0EE;color:var(--forest);border:1px solid var(--green-bd)}
+.preset-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;padding:2px 8px;border-radius:4px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.view-toggle{display:flex;gap:3px;margin-left:auto}
+.vtog{padding:4px 10px;border-radius:5px;font-size:11px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-family:'Sarabun',sans-serif;transition:all .15s}
+.vtog.active{background:var(--forest);color:#fff;border-color:var(--forest)}
+.qt-fields{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:.875rem}
+.qf{display:flex;flex-direction:column;gap:3px}
+.qf label{font-size:10px;color:var(--hint);font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+.qf input,.qf select{padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--rxs);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;transition:border-color .15s;width:100%}
+.qf input:focus,.qf select:focus{border-color:var(--forest)}
+.qt-settings{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.qt-set-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted)}
+.qt-set-item input[type=number]{width:54px;padding:4px 6px;border:1.5px solid var(--border);border-radius:var(--rxs);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;text-align:center}
+.qt-set-item input[type=number]:focus{border-color:var(--forest)}
+.toggle-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;border:1px solid var(--border);cursor:pointer;font-size:11px;font-weight:500;transition:all .15s;color:var(--muted);background:var(--card)}
+.toggle-pill.on{background:#EAF0EE;color:var(--forest);border-color:var(--green-bd)}
+.toggle-pill input{display:none}
+.remark-inp{flex:1;min-width:200px;padding:5px 8px;border:1.5px solid var(--border);border-radius:var(--rxs);font-size:11px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--muted);outline:none}
+.remark-inp:focus{border-color:var(--forest)}
+
+/* SECTION BLOCK */
+.section-block{margin-bottom:.75rem;border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.section-head{display:flex;align-items:center;gap:8px;padding:9px 14px;cursor:pointer;user-select:none}
+.section-head.pre{background:var(--forest)}
+.section-head.pro{background:var(--dforest)}
+.section-head.post{background:var(--forest2)}
+.section-head.extra{background:#5A4A2A}
+.sh-title{color:var(--gold);font-size:12px;font-weight:500;letter-spacing:.3px;flex:1;display:flex;align-items:center;gap:6px}
+.sh-total{color:#fff;font-size:13px;font-weight:600;font-family:'IBM Plex Sans Thai',sans-serif}
+.sh-cost{color:rgba(255,255,255,.5);font-size:11px;margin-left:8px}
+.sh-chevron{color:rgba(255,255,255,.6);font-size:14px;transition:transform .2s}
+.sh-chevron.open{transform:rotate(180deg)}
+
+/* TABLE */
+.item-table{width:100%;background:var(--card)}
+.it-head{display:grid;align-items:center;padding:5px 14px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
+.it-row{display:grid;align-items:center;padding:6px 14px;border-bottom:1px solid var(--border);font-size:12px;transition:background .1s}
+.it-row:last-child{border-bottom:none}
+.it-row:hover{background:var(--bg)}
+.it-name{color:var(--text);font-weight:500}
+.it-detail{color:var(--muted);font-size:11px;margin-top:1px}
+.it-inp{padding:3px 6px;border:1px solid var(--border);border-radius:3px;font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;text-align:right;width:100%}
+.it-inp:focus{border-color:var(--forest)}
+.it-cost{color:var(--amber);font-weight:500;text-align:right}
+.it-price{color:var(--text);font-weight:500;text-align:right}
+.it-total{color:var(--text);font-weight:600;text-align:right;font-family:'IBM Plex Sans Thai',sans-serif}
+.markup-inp{width:52px;padding:3px 5px;border:1px solid var(--border);border-radius:3px;font-size:11px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--forest);outline:none;text-align:center}
+.markup-inp:focus{border-color:var(--forest)}
+.markup-tag{font-size:10px;padding:1px 6px;border-radius:3px;background:#EAF0EE;color:var(--forest);border:1px solid var(--green-bd)}
+.own-tag{font-size:10px;padding:1px 6px;border-radius:3px;background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber-bd)}
+.it-actions{display:flex;gap:4px;justify-content:flex-end}
+
+/* GRID COLS */
+.grid-internal{grid-template-columns:1.8fr 55px 80px 80px 70px 70px 55px}
+.grid-client{grid-template-columns:2fr 60px 90px 90px 70px}
+
+.add-row{display:flex;align-items:center;gap:6px;padding:7px 14px;border-top:1px solid var(--border);background:var(--card2);font-size:12px;color:var(--hint);cursor:pointer}
+.add-row:hover{background:var(--bg);color:var(--forest)}
+
+/* SUMMARY */
+.summary-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:1rem;box-shadow:var(--sh)}
+.sum-top{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.sum-box{text-align:right}
+.sum-lbl{font-size:10px;color:var(--hint);text-transform:uppercase;letter-spacing:.3px;margin-bottom:3px}
+.sum-val{font-size:18px;font-weight:600;font-family:'IBM Plex Sans Thai',sans-serif;color:var(--text)}
+.sum-val.green{color:var(--green)}
+.sum-val.amber{color:var(--amber)}
+.sum-rows{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:12px;margin-bottom:.875rem}
+.sum-row-label{color:var(--muted)}
+.sum-row-val{text-align:right;font-weight:500;color:var(--text);font-family:'IBM Plex Sans Thai',sans-serif}
+.sum-row-val.red{color:var(--red)}
+.sum-divider{grid-column:1/-1;height:1px;background:var(--border);margin:4px 0}
+.sum-total-label{font-size:14px;font-weight:600;color:var(--text)}
+.sum-total-val{font-size:18px;font-weight:600;color:var(--forest);text-align:right;font-family:'IBM Plex Sans Thai',sans-serif}
+.sum-actions{display:flex;gap:7px;justify-content:flex-end}
+.mgmt-row{display:flex;align-items:center;gap:6px;padding:6px 14px;background:#FAFAF8;border-top:1px solid var(--border);font-size:12px}
+.mgmt-label{color:var(--muted);flex:1}
+.mgmt-val{font-weight:600;color:var(--text);font-family:'IBM Plex Sans Thai',sans-serif;text-align:right}
+.mgmt-cost{color:var(--amber);font-size:11px;margin-left:8px}
+
+/* CATALOGUE PAGE */
+.cat-page{flex:1;display:flex;flex-direction:column;padding:1rem}
+.cat-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:.875rem;flex-wrap:wrap}
+.cat-filter{display:flex;gap:4px}
+.cat-fb{padding:4px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;cursor:pointer;background:var(--card);color:var(--muted);font-family:'Sarabun',sans-serif;transition:all .15s}
+.cat-fb.active{background:var(--forest);color:#fff;border-color:var(--forest)}
+.cat-search{padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;width:200px}
+.cat-search:focus{border-color:var(--forest)}
+.cat-table{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
+.cat-head{display:grid;grid-template-columns:2fr 100px 80px 90px 90px 100px 50px;gap:6px;padding:7px 14px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
+.cat-row{display:grid;grid-template-columns:2fr 100px 80px 90px 90px 100px 50px;gap:6px;padding:7px 14px;border-bottom:1px solid var(--border);align-items:center;font-size:12px;transition:background .1s}
+.cat-row:last-child{border-bottom:none}
+.cat-row:hover{background:var(--bg)}
+.cat-name{font-weight:500;color:var(--text)}
+.part-badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
+.part-pre{background:#EAF0EE;color:var(--forest)}
+.part-pro{background:var(--amber-bg);color:var(--amber)}
+.part-post{background:var(--blue-bg);color:var(--blue)}
+.cat-inp{padding:3px 6px;border:1px solid var(--border);border-radius:3px;font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;text-align:right;width:100%}
+.cat-inp:focus{border-color:var(--forest)}
+.empty{text-align:center;padding:3rem;color:var(--hint);font-size:13px}
+
+/* MODAL */
+.moverlay{position:fixed;inset:0;background:rgba(31,46,42,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:1rem;backdrop-filter:blur(4px)}
+.moverlay.open{display:flex}
+.modal{background:var(--card);border-radius:14px;border:1px solid var(--border);padding:1.75rem;width:100%;max-width:520px;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(17,19,17,.18)}
+.modal h2{font-size:16px;font-weight:600;font-family:'IBM Plex Sans Thai',sans-serif;margin-bottom:1.125rem;color:var(--forest)}
+.mf{margin-bottom:12px}
+.mf label{display:block;font-size:11px;color:var(--muted);font-weight:600;margin-bottom:4px;letter-spacing:.3px;text-transform:uppercase}
+.mf input,.mf select,.mf textarea{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:13px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;transition:border-color .15s}
+.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--forest)}
+.mf textarea{resize:vertical;min-height:60px}
+.mf-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mfooter{display:flex;justify-content:flex-end;gap:8px;margin-top:1.125rem;padding-top:.875rem;border-top:1px solid var(--border)}
+
+/* CATALOGUE PICKER */
+.cat-picker{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--rsm);margin-top:8px}
+.cp-row{display:flex;align-items:center;gap:8px;padding:7px 12px;border-bottom:1px solid var(--border);cursor:pointer;font-size:12px;transition:background .1s}
+.cp-row:last-child{border-bottom:none}
+.cp-row:hover{background:var(--bg)}
+.cp-row.selected{background:#EAF0EE}
+.cp-name{flex:1;font-weight:500;color:var(--text)}
+.cp-price{color:var(--muted);font-size:11px}
+
+/* PRINT CLIENT VIEW */
+@media print{
+  .topbar,.sidebar,.sum-actions,.it-actions,.add-row,.btn{display:none!important}
+  .qt-layout{grid-template-columns:1fr}
+  .it-cost,.it-inp.cost-col,.markup-inp,.markup-tag,.own-tag,.sh-cost{display:none!important}
+  .grid-internal{grid-template-columns:2fr 60px 90px 70px}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="scard">
+    <div class="slogo"><div class="slogo-icon">📋</div>COT Quotation</div>
+    <p class="ssub">ระบบออกใบเสนอราคา — เชื่อมต่อ Supabase เดิมได้เลย</p>
+    <div class="sf"><label>Supabase URL</label><input id="sb-url" placeholder="https://xxxx.supabase.co"/></div>
+    <div class="sf"><label>Publishable Key</label><input id="sb-key" placeholder="sb_publishable_..."/></div>
+    <div class="serr" id="serr"></div>
+    <button class="sbtn" id="sbtn" onclick="connectDB()">เชื่อมต่อและเริ่มใช้งาน</button>
+    <p class="snote">ใช้ Supabase เดิมของ COT Follow ได้เลยครับ</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tlogo"><div class="tlogo-dot"></div>COT Quotation</div>
+    <div class="tnav">
+      <button class="tnavbtn active" onclick="showPage('qt')">ใบเสนอราคา</button>
+      <button class="tnavbtn" onclick="showPage('cat')">Catalogue</button>
+      <button class="tnavbtn" onclick="showPage('preset')">Preset</button>
+    </div>
+    <div class="tright">
+      <span class="sdot" id="sdot"></span>
+      <button class="topbtn gold" onclick="openNewQT()">+ ใบใหม่</button>
+    </div>
+  </div>
+
+  <!-- QT PAGE -->
+  <div class="page active" id="page-qt" style="flex:1">
+    <div class="qt-layout" style="flex:1">
+      <div class="sidebar" id="sidebar">
+        <div class="sb-section">
+          <div class="sb-label">โปรเจค</div>
+          <div id="proj-list"></div>
+          <button class="dashed-btn" onclick="openNewProj()">+ โปรเจคใหม่</button>
+        </div>
+        <div class="sb-section" id="ver-section" style="display:none">
+          <div class="sb-label" id="ver-label">Versions</div>
+          <div id="ver-list"></div>
+          <button class="dashed-btn" onclick="cloneQT()">+ Version ใหม่</button>
+        </div>
+      </div>
+      <div class="qt-main" id="qt-main">
+        <div class="empty" style="margin:auto">เลือกหรือสร้างโปรเจคทางซ้ายมือครับ</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CATALOGUE PAGE -->
+  <div class="page" id="page-cat">
+    <div class="cat-page">
+      <div class="cat-toolbar">
+        <div class="cat-filter">
+          <button class="cat-fb active" onclick="filterCat('all',this)">ทั้งหมด</button>
+          <button class="cat-fb" onclick="filterCat('Pre-Production',this)">Pre</button>
+          <button class="cat-fb" onclick="filterCat('Production',this)">Pro</button>
+          <button class="cat-fb" onclick="filterCat('Post-Production',this)">Post</button>
+        </div>
+        <input class="cat-search" placeholder="ค้นหา..." oninput="renderCat()" id="cat-search"/>
+        <button class="btn primary" style="margin-left:auto" onclick="openAddCat()">+ เพิ่มรายการ</button>
+      </div>
+      <div id="cat-table-wrap"></div>
+    </div>
+  </div>
+
+  <!-- PRESET PAGE -->
+  <div class="page" id="page-preset">
+    <div class="cat-page">
+      <div class="cat-toolbar">
+        <span style="font-size:13px;font-weight:500;color:var(--text)">Preset Packages</span>
+        <button class="btn primary" style="margin-left:auto" onclick="openAddPreset()">+ สร้าง Preset</button>
+      </div>
+      <div id="preset-list-wrap"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="moverlay" id="moverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const PARTS=['Pre-Production','Production','Post-Production'];
+const PART_SHORT={Pre:'Pre-Production',Pro:'Production',Post:'Post-Production'};
+let sb=null,projects=[],quotations=[],items=[],catalogue=[],presets=[],presetItems=[];
+let activeProjId=null,activeQTId=null,currentView='internal',catFilter='all';
+
+function fmt(n){return Math.round(n||0).toLocaleString('th-TH')}
+function today(){return new Date().toISOString().split('T')[0]}
+function genQTNo(){const d=new Date();return 'QT'+d.getFullYear()+(d.getMonth()+1).toString().padStart(2,'0')+Math.floor(Math.random()*9000+1000);}
+
+let SB_URL='',SB_KEY='';
+
+
+
+
+
+async function connectDB(){
+  const url=document.getElementById('sb-url').value.trim();
+  const key=document.getElementById('sb-key').value.trim();
+  const err=document.getElementById('serr'),btn=document.getElementById('sbtn');
+  if(!url||!key){err.style.display='block';err.textContent='กรุณากรอก URL และ Key';return;}
+  btn.innerHTML='<span class="spinner"></span> กำลังเชื่อมต่อ...';btn.disabled=true;err.style.display='none';
+  try{
+    SB_URL=url.replace(/\/$/,'');SB_KEY=key;
+    const res=await fetch(SB_URL+'/rest/v1/qt_projects?select=id&limit=1',{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    localStorage.setItem('qt_sb_url',url);localStorage.setItem('qt_sb_key',key);
+    startApp();
+  }catch(e){
+    err.style.display='block';err.textContent='เชื่อมต่อไม่ได้: '+e.message;
+    btn.innerHTML='เชื่อมต่อและเริ่มใช้งาน';btn.disabled=false;
+  }
+}
+
+async function startApp(){
+  document.getElementById('setup').style.display='none';
+  document.getElementById('app').style.display='flex';
+  setSyncDot(true);await loadAll();
+  setInterval(()=>loadAll(),15000);
+}
+
+async function dbPost(table,data){
+  const r=await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(data)});
+  const j=await r.json();return Array.isArray(j)?j[0]:j;
+}
+async function dbPatch(table,filter,data){
+  await fetch(SB_URL+'/rest/v1/'+table+'?'+filter,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(data)});
+}
+async function dbDelete(table,filter){
+  await fetch(SB_URL+'/rest/v1/'+table+'?'+filter,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+}
+function setSyncDot(ok){document.getElementById('sdot').className='sdot '+(ok?'ok':'err');}
+
+async function loadAll(){
+  try{
+    const H={'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+    const B=SB_URL+'/rest/v1/';
+    const [pr,qt,it,cat,ps,psi]=await Promise.all([
+      fetch(B+'qt_projects?select=*&order=created_at',{headers:H}).then(r=>r.json()),
+      fetch(B+'qt_quotations?select=*&order=created_at',{headers:H}).then(r=>r.json()),
+      fetch(B+'qt_items?select=*&order=sort_order',{headers:H}).then(r=>r.json()),
+      fetch(B+'qt_catalogue?select=*&order=part,name',{headers:H}).then(r=>r.json()),
+      fetch(B+'qt_presets?select=*&order=name',{headers:H}).then(r=>r.json()),
+      fetch(B+'qt_preset_items?select=*&order=sort_order',{headers:H}).then(r=>r.json())
+    ]);
+    projects=Array.isArray(pr)?pr:[];quotations=Array.isArray(qt)?qt:[];items=Array.isArray(it)?it:[];
+    catalogue=Array.isArray(cat)?cat:[];presets=Array.isArray(ps)?ps:[];presetItems=Array.isArray(psi)?psi:[];
+    setSyncDot(true);
+    renderSidebar();
+    if(activeQTId) renderQT();
+    renderCat();renderPresets();
+  }catch(e){setSyncDot(false);}
+}
+
+function showPage(p){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.tnavbtn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  event.target.classList.add('active');
+}
+
+/* SIDEBAR */
+function renderSidebar(){
+  const pl=document.getElementById('proj-list');
+  pl.innerHTML=projects.filter(p=>!p.archived).map(p=>{
+    const qts=quotations.filter(q=>q.project_id===p.id);
+    return `<div class="proj-item ${activeProjId===p.id?'active':''}" onclick="selectProj('${p.id}')">
+      <div class="proj-dot"></div>
+      <span style="flex:1">${p.name}</span>
+      <span class="proj-meta">${qts.length} ver</span>
+    </div>`;
+  }).join('');
+  if(activeProjId){
+    const qts=quotations.filter(q=>q.project_id===activeProjId);
+    const proj=projects.find(p=>p.id===activeProjId);
+    document.getElementById('ver-section').style.display='block';
+    document.getElementById('ver-label').textContent=proj?proj.name:'Versions';
+    document.getElementById('ver-list').innerHTML=qts.map(q=>`
+      <div class="ver-item ${activeQTId===q.id?'active':''}" onclick="selectQT('${q.id}')">
+        <i class="ti ti-file-text" aria-hidden="true" style="font-size:12px"></i>
+        <span style="flex:1">${q.version_name}</span>
+        <span class="proj-meta" style="font-size:9px">${q.status==='final'?'✓':''}</span>
+      </div>`).join('');
+  }
+}
+
+function selectProj(id){activeProjId=id;const qts=quotations.filter(q=>q.project_id===id);if(qts.length>0)selectQT(qts[qts.length-1].id);else{activeQTId=null;document.getElementById('qt-main').innerHTML='<div class="empty" style="margin:auto">ยังไม่มีใบเสนอราคา กด "+ Version ใหม่"</div>';}renderSidebar();}
+function selectQT(id){activeQTId=id;renderSidebar();renderQT();}
+
+/* RENDER QT */
+function renderQT(){
+  const qt=quotations.find(q=>q.id===activeQTId);
+  if(!qt){document.getElementById('qt-main').innerHTML='<div class="empty" style="margin:auto">ไม่พบใบเสนอราคา</div>';return;}
+  const proj=projects.find(p=>p.id===qt.project_id);
+  const qItems=items.filter(i=>i.quotation_id===activeQTId);
+  const isInternal=currentView==='internal';
+
+  const calcSection=(sec)=>{
+    const si=qItems.filter(i=>i.section===sec&&!i.is_extra);
+    const cost=si.reduce((a,i)=>a+(i.cost*i.qty),0);
+    const price=si.reduce((a,i)=>a+(i.price*i.qty),0);
+    return {cost,price};
+  };
+  const calcExtra=()=>{
+    const si=qItems.filter(i=>i.is_extra);
+    const cost=si.reduce((a,i)=>a+(i.cost*i.qty),0);
+    const price=si.reduce((a,i)=>a+(i.price*i.qty),0);
+    return {cost,price};
+  };
+
+  const pre=calcSection('Pre-Production');
+  const pro=calcSection('Production');
+  const post=calcSection('Post-Production');
+  const extra=calcExtra();
+  const subtotal=(pre.price+pro.price+post.price+(qt.show_extra?extra.price:0));
+  const mgmtFee=subtotal*(qt.mgmt_fee_pct/100);
+  const beforeVat=subtotal+mgmtFee;
+  const vat=qt.vat_enabled?beforeVat*0.07:0;
+  const wht=qt.wht_enabled?beforeVat*0.03:0;
+  const totalCost=pre.cost+pro.cost+post.cost+(qt.show_extra?extra.cost:0);
+  const profit=beforeVat-totalCost;
+  const margin=beforeVat>0?((profit/beforeVat)*100).toFixed(1):0;
+
+  const gridClass=isInternal?'grid-internal':'grid-client';
+  const renderHead=()=>isInternal?
+    `<div class="it-head ${gridClass}"><div>รายการ</div><div style="text-align:right">จำนวน</div><div style="text-align:right">ต้นทุน/unit</div><div style="text-align:right">ราคาขาย</div><div style="text-align:right">Markup%</div><div style="text-align:right">รวม</div><div></div></div>`:
+    `<div class="it-head ${gridClass}"><div>รายการ</div><div style="text-align:right">จำนวน</div><div style="text-align:right">Unit</div><div style="text-align:right">ราคา/unit</div><div style="text-align:right">รวม</div></div>`;
+
+  const renderItem=(item)=>{
+    const rowTotal=item.price*item.qty;
+    const mk=item.price>0&&item.cost>0?Math.round(((item.price-item.cost)/item.cost)*100):0;
+    const isOwn=item.cost===0;
+    if(isInternal) return `<div class="it-row ${gridClass}" id="irow-${item.id}">
+      <div><div class="it-name">${item.name}</div>${item.detail?`<div class="it-detail">${item.detail}</div>`:''}</div>
+      <div><input class="it-inp" value="${item.qty}" onchange="updateItem('${item.id}','qty',this.value)" style="width:55px;text-align:center"/></div>
+      <div class="it-cost">${isOwn?'<span class="own-tag">ของเรา</span>':fmt(item.cost)}</div>
+      <div><input class="it-inp" value="${item.price}" onchange="updateItem('${item.id}','price',this.value)" style="width:75px"/></div>
+      <div style="text-align:center"><input class="markup-inp" value="${item.markup_pct||''}" placeholder="0" onchange="applyMarkup('${item.id}',this.value)" title="กด Enter เพื่อคำนวณราคาขายอัตโนมัติ"/></div>
+      <div class="it-total">${fmt(rowTotal)}</div>
+      <div class="it-actions"><button class="btn ghost sm" onclick="deleteItem('${item.id}')" title="ลบ"><i class="ti ti-trash" aria-hidden="true" style="font-size:11px"></i></button></div>
+    </div>`;
+    else return `<div class="it-row ${gridClass}">
+      <div><div class="it-name">${item.name}</div>${item.detail?`<div class="it-detail">${item.detail}</div>`:''}</div>
+      <div style="text-align:right">${item.qty}</div>
+      <div style="text-align:right;color:var(--muted)">${item.unit||'-'}</div>
+      <div style="text-align:right">${fmt(item.price)}</div>
+      <div class="it-total">${fmt(rowTotal)}</div>
+    </div>`;
+  };
+
+  const renderSection=(sec,label,cls,data)=>{
+    const si=qItems.filter(i=>i.section===sec&&!i.is_extra);
+    return `<div class="section-block">
+      <div class="section-head ${cls}" onclick="toggleSection('${sec}')">
+        <div class="sh-title"><i class="ti ti-chevron-down sh-chevron open" id="shev-${sec}" aria-hidden="true"></i>${label}</div>
+        <div class="sh-total">฿ ${fmt(data.price)}</div>
+        ${isInternal?`<div class="sh-cost">ต้นทุน ${fmt(data.cost)}</div>`:''}
+      </div>
+      <div id="sec-${sec}">
+        ${renderHead()}
+        ${si.map(renderItem).join('')}
+        <div class="add-row" onclick="openAddItem('${sec}')">
+          <i class="ti ti-plus" aria-hidden="true" style="font-size:12px"></i> เพิ่มรายการ ${label}
+        </div>
+      </div>
+    </div>`;
+  };
+
+  const extraSection=qt.show_extra?`<div class="section-block">
+    <div class="section-head extra" onclick="toggleSection('Extra')">
+      <div class="sh-title"><i class="ti ti-chevron-down sh-chevron open" id="shev-Extra" aria-hidden="true"></i>Extra / Add-on</div>
+      <div class="sh-total">฿ ${fmt(extra.price)}</div>
+      ${isInternal?`<div class="sh-cost">ต้นทุน ${fmt(extra.cost)}</div>`:''}
+    </div>
+    <div id="sec-Extra">
+      ${renderHead()}
+      ${qItems.filter(i=>i.is_extra).map(renderItem).join('')}
+      <div class="add-row" onclick="openAddItem('Extra')">
+        <i class="ti ti-plus" aria-hidden="true" style="font-size:12px"></i> เพิ่ม Extra
+      </div>
+    </div>
+  </div>`:'';
+
+  document.getElementById('qt-main').innerHTML=`
+    <div class="qt-header-card">
+      <div class="qt-title-row">
+        <input class="qt-title-inp" value="${proj?proj.name:''} — ${qt.version_name}" onblur="updateQTTitle(this.value)" id="qt-title-inp"/>
+        <span class="ver-badge"><i class="ti ti-git-branch" aria-hidden="true" style="font-size:10px"></i>${qt.version_name}</span>
+        <div class="view-toggle">
+          <button class="vtog ${currentView==='internal'?'active':''}" onclick="setView('internal')">Internal</button>
+          <button class="vtog ${currentView==='client'?'active':''}" onclick="setView('client')">ลูกค้า</button>
+        </div>
+      </div>
+      <div class="qt-fields">
+        <div class="qf"><label>ลูกค้า</label><input id="qt-client" value="${qt.client_name||''}" onblur="saveQTField('client_name',this.value)"/></div>
+        <div class="qf"><label>เลขที่ QT</label><input value="${qt.qt_number||''}" onblur="saveQTField('qt_number',this.value)"/></div>
+        <div class="qf"><label>วันที่</label><input type="date" value="${qt.qt_date||today()}" onblur="saveQTField('qt_date',this.value)"/></div>
+        <div class="qf"><label>เครดิต (วัน)</label><input type="number" value="${qt.credit_days||30}" onblur="saveQTField('credit_days',this.value)"/></div>
+        <div class="qf"><label>ผู้ขาย</label><input value="${qt.salesperson||''}" onblur="saveQTField('salesperson',this.value)"/></div>
+        <div class="qf"><label>สถานะ</label><select onchange="saveQTField('status',this.value)">
+          <option value="draft" ${qt.status==='draft'?'selected':''}>Draft</option>
+          <option value="sent" ${qt.status==='sent'?'selected':''}>Sent</option>
+          <option value="final" ${qt.status==='final'?'selected':''}>Final</option>
+        </select></div>
+      </div>
+      <div class="qt-settings">
+        <span class="qt-set-item">Markup เริ่มต้น <input type="number" value="${qt.markup_default||0}" id="mk-default" onblur="saveQTField('markup_default',this.value)" min="0" max="999" step="1"/>%</span>
+        <span class="qt-set-item">Management Fee <input type="number" value="${qt.mgmt_fee_pct||10}" onblur="saveQTField('mgmt_fee_pct',this.value)" min="0" max="100" step="1"/>%</span>
+        <label class="toggle-pill ${qt.vat_enabled?'on':''}"><input type="checkbox" ${qt.vat_enabled?'checked':''} onchange="saveQTField('vat_enabled',this.checked)"/> VAT 7%</label>
+        <label class="toggle-pill ${qt.wht_enabled?'on':''}"><input type="checkbox" ${qt.wht_enabled?'checked':''} onchange="saveQTField('wht_enabled',this.checked)"/> หัก ณ ที่จ่าย 3%</label>
+        <label class="toggle-pill ${qt.show_extra?'on':''}"><input type="checkbox" ${qt.show_extra?'checked':''} onchange="saveQTField('show_extra',this.checked)"/> Extra / Add-on</label>
+        <span class="qt-set-item" style="margin-left:auto;flex:1">
+          <span style="color:var(--hint);font-size:11px">Remark:</span>
+          <input class="remark-inp" value="${qt.remark||''}" onblur="saveQTField('remark',this.value)" placeholder="หมายเหตุสำหรับลูกค้า..."/>
+        </span>
+      </div>
+    </div>
+
+    ${renderSection('Pre-Production','Pre-Production','pre',pre)}
+    ${renderSection('Production','Production','pro',pro)}
+    ${renderSection('Post-Production','Post-Production','post',post)}
+    ${extraSection}
+
+    <div class="section-block" style="background:var(--card);border:1px solid var(--border);border-radius:var(--r)">
+      <div class="mgmt-row">
+        <span class="mgmt-label">Management Fee ${qt.mgmt_fee_pct}%</span>
+        ${isInternal?`<span class="mgmt-cost"></span>`:''}
+        <span class="mgmt-val">฿ ${fmt(mgmtFee)}</span>
+      </div>
+    </div>
+
+    <div class="summary-card" style="margin-top:.75rem">
+      ${isInternal?`<div class="sum-top">
+        <div class="sum-box"><div class="sum-lbl">ต้นทุนรวม</div><div class="sum-val amber">฿ ${fmt(totalCost)}</div></div>
+        <div class="sum-box"><div class="sum-lbl">ราคาขาย (ก่อน VAT)</div><div class="sum-val">฿ ${fmt(beforeVat)}</div></div>
+        <div class="sum-box"><div class="sum-lbl">กำไรรวม</div><div class="sum-val green">฿ ${fmt(profit)}</div></div>
+        <div class="sum-box"><div class="sum-lbl">Margin</div><div class="sum-val green">${margin}%</div></div>
+      </div>`:''}
+      <div class="sum-rows">
+        <div class="sum-row-label">ราคาก่อน VAT</div><div class="sum-row-val">฿ ${fmt(beforeVat)}</div>
+        ${qt.vat_enabled?`<div class="sum-row-label">VAT 7%</div><div class="sum-row-val">฿ ${fmt(vat)}</div>`:''}
+        ${qt.wht_enabled?`<div class="sum-row-label">หัก ณ ที่จ่าย 3%</div><div class="sum-row-val red">- ฿ ${fmt(wht)}</div>`:''}
+        <div class="sum-divider"></div>
+        <div class="sum-total-label">ยอดชำระ</div><div class="sum-total-val">฿ ${fmt(beforeVat+vat-wht)}</div>
+      </div>
+      <div class="sum-actions">
+        <button class="btn" onclick="cloneQT()"><i class="ti ti-copy" aria-hidden="true" style="font-size:12px"></i> Clone Version</button>
+        <button class="btn" onclick="deleteQT()"><i class="ti ti-trash" aria-hidden="true" style="font-size:12px"></i> ลบใบนี้</button>
+        <button class="btn gold" onclick="exportPDF()"><i class="ti ti-download" aria-hidden="true" style="font-size:12px"></i> Export PDF</button>
+      </div>
+    </div>`;
+}
+
+function toggleSection(sec){
+  const el=document.getElementById('sec-'+sec);
+  const ch=document.getElementById('shev-'+sec);
+  if(!el)return;
+  if(el.style.display==='none'){el.style.display='';if(ch)ch.classList.add('open');}
+  else{el.style.display='none';if(ch)ch.classList.remove('open');}
+}
+function setView(v){currentView=v;renderQT();}
+
+async function saveQTField(field,val){
+  if(!activeQTId)return;
+  const update={};
+  update[field]=(field==='vat_enabled'||field==='wht_enabled'||field==='show_extra')?val:(isNaN(val)||val==='')?val:Number(val);
+  await fetch(SB_URL+'/rest/v1/qt_quotations?id=eq.'+activeQTId,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(update)});
+  await loadAll();
+}
+
+async function updateItem(id,field,val){
+  const update={};update[field]=Number(val)||0;
+  await fetch(SB_URL+'/rest/v1/qt_items?id=eq.'+id,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(update)});
+  await loadAll();
+}
+
+async function applyMarkup(id,pct){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  const p=Number(pct)||0;
+  const newPrice=p>0?Math.round(item.cost*(1+p/100)):item.price;
+  await fetch(SB_URL+'/rest/v1/qt_items?id=eq.'+id,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify({markup_pct:p,price:newPrice})});
+  await loadAll();
+}
+
+async function deleteItem(id){
+  await fetch(SB_URL+'/rest/v1/qt_items?id=eq.'+id,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});await loadAll();
+}
+
+async function deleteQT(){
+  if(!confirm('ลบใบนี้?'))return;
+  await fetch(SB_URL+'/rest/v1/qt_items?quotation_id=eq.'+activeQTId,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+  await fetch(SB_URL+'/rest/v1/qt_quotations?id=eq.'+activeQTId,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY}});
+  activeQTId=null;await loadAll();
+  document.getElementById('qt-main').innerHTML='<div class="empty" style="margin:auto">กด "+ Version ใหม่"</div>';
+}
+
+/* CLONE QT */
+async function cloneQT(){
+  if(!activeQTId){openNewQT();return;}
+  const qt=quotations.find(q=>q.id===activeQTId);if(!qt)return;
+  const vNum=quotations.filter(q=>q.project_id===qt.project_id).length+1;
+  const {id:_,created_at:__,...qtData}=qt;
+  const newQT=await dbPost('qt_quotations',{...qtData,version_name:'v'+vNum,qt_number:genQTNo(),status:'draft'});
+  if(newQT){
+    const qItems=items.filter(i=>i.quotation_id===activeQTId);
+    for(const i of qItems){const {id:_i,created_at:_c,...iData}=i;await dbPost('qt_items',{...iData,quotation_id:newQT.id});}
+    activeQTId=newQT.id;
+  }
+  await loadAll();
+}
+
+/* ADD ITEM MODAL */
+function openAddItem(section){
+  const qt=quotations.find(q=>q.id===activeQTId);
+  const defaultMk=qt?qt.markup_default:15;
+  const isExtra=section==='Extra';
+  const catItems=catalogue.filter(c=>isExtra||c.part===section);
+  const catHtml=catItems.map(c=>`<div class="cp-row" onclick="fillFromCat('${c.id}')">
+    <span class="cp-name">${c.name}</span>
+    <span class="cp-price">${fmt(c.cost_min)}${c.cost_max>c.cost_min?'–'+fmt(c.cost_max):''} / ${c.unit||'-'}</span>
+  </div>`).join('');
+
+  openModal(`<h2>+ เพิ่มรายการ — ${section}</h2>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:6px">เลือกจาก Catalogue หรือกรอกเอง</div>
+    <div class="cat-picker" id="cat-picker">${catHtml||'<div class="empty" style="padding:1rem">ไม่มีรายการใน Catalogue</div>'}</div>
+    <div style="margin-top:12px">
+    <div class="mf"><label>ชื่อรายการ *</label><input id="ai-name" placeholder="ระบุชื่อ..."/></div>
+    <div class="mf"><label>รายละเอียด</label><input id="ai-detail" placeholder="รายละเอียดเพิ่มเติม (ไม่บังคับ)"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>Unit</label><input id="ai-unit" placeholder="day/lot/set..."/></div>
+      <div class="mf"><label>จำนวน</label><input id="ai-qty" type="number" value="1" min="1"/></div>
+    </div>
+    <div class="mf-row">
+      <div class="mf"><label>ต้นทุน/unit (0=ของเรา)</label><input id="ai-cost" type="number" value="0" min="0"/></div>
+      <div class="mf"><label>ราคาขาย/unit</label><input id="ai-price" type="number" value="0" min="0"/></div>
+    </div>
+    <div class="mf"><label>Markup % (กรอกแล้วราคาขายคำนวณให้)</label><input id="ai-mk" type="number" value="${defaultMk}" min="0" oninput="calcMkPrice()"/></div>
+    </div>
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveAddItem('${section}',${isExtra})">เพิ่มรายการ</button></div>`);
+  document.getElementById('ai-cost').addEventListener('input',calcMkPrice);
+}
+
+function calcMkPrice(){
+  const cost=Number(document.getElementById('ai-cost')?.value)||0;
+  const mk=Number(document.getElementById('ai-mk')?.value)||0;
+  const priceEl=document.getElementById('ai-price');
+  if(priceEl&&mk>0&&cost>0) priceEl.value=Math.round(cost*(1+mk/100));
+}
+
+function fillFromCat(catId){
+  const c=catalogue.find(x=>x.id===catId);if(!c)return;
+  document.getElementById('ai-name').value=c.name;
+  document.getElementById('ai-unit').value=c.unit||'';
+  document.getElementById('ai-cost').value=c.cost_min;
+  calcMkPrice();
+  document.querySelectorAll('.cp-row').forEach(r=>r.classList.remove('selected'));
+  event.currentTarget.classList.add('selected');
+}
+
+async function saveAddItem(section,isExtra){
+  const name=document.getElementById('ai-name').value.trim();
+  if(!name)return alert('กรุณาระบุชื่อรายการ');
+  const cost=Number(document.getElementById('ai-cost').value)||0;
+  const mk=Number(document.getElementById('ai-mk').value)||0;
+  let price=Number(document.getElementById('ai-price').value)||0;
+  if(mk>0&&cost>0&&price===0) price=Math.round(cost*(1+mk/100));
+  const maxOrder=items.filter(i=>i.quotation_id===activeQTId&&i.section===section).length;
+  await dbPost('qt_items',{
+    quotation_id:activeQTId,section:isExtra?'Extra':section,
+    name,detail:document.getElementById('ai-detail').value,
+    unit:document.getElementById('ai-unit').value,
+    qty:Number(document.getElementById('ai-qty').value)||1,
+    cost,price,markup_pct:mk,is_extra:isExtra,sort_order:maxOrder
+  });
+  closeModal();await loadAll();
+}
+
+/* PROJECTS */
+async function openNewProj(){
+  openModal(`<h2>+ โปรเจคใหม่</h2>
+    <div class="mf"><label>ชื่อโปรเจค *</label><input id="pname" placeholder="เช่น Turbo4Wheels MV"/></div>
+    <div class="mf"><label>ลูกค้า</label><input id="pclient" placeholder="ชื่อลูกค้า"/></div>
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveNewProj()">สร้าง</button></div>`);
+  setTimeout(()=>document.getElementById('pname').focus(),100);
+}
+async function saveNewProj(){
+  const name=document.getElementById('pname').value.trim();if(!name)return alert('กรุณาระบุชื่อ');
+  const proj=await dbPost('qt_projects',{name,archived:false});
+  if(proj){
+    activeProjId=proj.id;
+    const qt=await dbPost('qt_quotations',{project_id:proj.id,version_name:'v1',qt_number:genQTNo(),qt_date:today(),client_name:document.getElementById('pclient').value,markup_default:15,mgmt_fee_pct:10,vat_enabled:true,wht_enabled:true,show_extra:false,status:'draft'});
+    if(qt)activeQTId=qt.id;
+  }
+  closeModal();await loadAll();
+}
+
+async function openNewQT(){
+  if(!activeProjId){await openNewProj();return;}
+  const vNum=quotations.filter(q=>q.project_id===activeProjId).length+1;
+  const lastQT=quotations.filter(q=>q.project_id===activeProjId).pop();
+  const qt=await dbPost('qt_quotations',{
+    project_id:activeProjId,version_name:'v'+vNum,qt_number:genQTNo(),qt_date:today(),
+    client_name:lastQT?lastQT.client_name:'',markup_default:lastQT?lastQT.markup_default:15,
+    mgmt_fee_pct:lastQT?lastQT.mgmt_fee_pct:10,vat_enabled:true,wht_enabled:true,show_extra:false,status:'draft'
+  });
+  if(qt)activeQTId=qt.id;
+  await loadAll();
+}
+
+/* CATALOGUE */
+let catFilterActive='all';
+function filterCat(f,el){
+  catFilterActive=f;
+  document.querySelectorAll('.cat-fb').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');renderCat();
+}
+function renderCat(){
+  const q=(document.getElementById('cat-search')?.value||'').toLowerCase();
+  let list=catalogue;
+  if(catFilterActive!=='all')list=list.filter(c=>c.part===catFilterActive);
+  if(q)list=list.filter(c=>c.name.toLowerCase().includes(q)||c.notes?.toLowerCase().includes(q));
+  const wrap=document.getElementById('cat-table-wrap');
+  if(!wrap)return;
+  if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
+  wrap.innerHTML=`<div class="cat-table">
+    <div class="cat-head"><div>ชื่อรายการ</div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ</div><div></div></div>
+    ${list.map(c=>`<div class="cat-row">
+      <div class="cat-name">${c.name}</div>
+      <div><span class="part-badge part-${c.part==='Pre-Production'?'pre':c.part==='Production'?'pro':'post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
+      <div style="color:var(--muted)">${c.unit||'-'}</div>
+      <div style="text-align:right"><input class="cat-inp" value="${c.cost_min}" style="width:80px" onblur="updateCat('${c.id}','cost_min',this.value)"/></div>
+      <div style="text-align:right"><input class="cat-inp" value="${c.cost_max}" style="width:80px" onblur="updateCat('${c.id}','cost_max',this.value)"/></div>
+      <div style="color:var(--muted);font-size:11px">${c.notes||''}</div>
+      <div class="it-actions"><button class="btn ghost sm" onclick="deleteCat('${c.id}')"><i class="ti ti-trash" aria-hidden="true" style="font-size:11px"></i></button></div>
+    </div>`).join('')}
+  </div>`;
+}
+async function updateCat(id,field,val){
+  await dbPatch('qt_catalogue','id=eq.'+id,{[field]:Number(val)||0});
+}
+async function deleteCat(id){if(!confirm('ลบรายการนี้?'))return;await sb.from('qt_catalogue').delete().eq('id',id);await loadAll();}
+
+function openAddCat(){
+  openModal(`<h2>+ เพิ่มรายการ Catalogue</h2>
+    <div class="mf"><label>ชื่อ *</label><input id="cn" placeholder="เช่น Director (with storyboard)"/></div>
+    <div class="mf-row">
+      <div class="mf"><label>หมวด</label><select id="cp"><option>Pre-Production</option><option>Production</option><option>Post-Production</option></select></div>
+      <div class="mf"><label>Unit</label><input id="cu" placeholder="day/lot/set/role..."/></div>
+    </div>
+    <div class="mf-row">
+      <div class="mf"><label>ราคา Min</label><input id="cmin" type="number" value="0"/></div>
+      <div class="mf"><label>ราคา Max</label><input id="cmax" type="number" value="0"/></div>
+    </div>
+    <div class="mf"><label>หมายเหตุ</label><textarea id="cnotes" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveAddCat()">บันทึก</button></div>`);
+  setTimeout(()=>document.getElementById('cn').focus(),100);
+}
+async function saveAddCat(){
+  const name=document.getElementById('cn').value.trim();if(!name)return;
+  await dbPost('qt_catalogue',{name,part:document.getElementById('cp').value,unit:document.getElementById('cu').value,cost_min:Number(document.getElementById('cmin').value)||0,cost_max:Number(document.getElementById('cmax').value)||0,notes:document.getElementById('cnotes').value});
+  closeModal();await loadAll();
+}
+
+/* PRESETS */
+function renderPresets(){
+  const wrap=document.getElementById('preset-list-wrap');if(!wrap)return;
+  if(!presets.length){wrap.innerHTML='<div class="empty">ยังไม่มี Preset</div>';return;}
+  wrap.innerHTML=presets.map(p=>{
+    const pItems=presetItems.filter(i=>i.preset_id===p.id);
+    return `<div class="cat-table" style="margin-bottom:.75rem">
+      <div class="cat-head" style="display:flex;align-items:center;padding:8px 14px;background:var(--forest)">
+        <span style="color:var(--gold);font-size:12px;font-weight:500;flex:1">${p.name}</span>
+        <span style="color:rgba(255,255,255,.6);font-size:11px">${pItems.length} รายการ</span>
+        <button class="btn ghost sm" style="color:rgba(255,255,255,.6);margin-left:8px" onclick="deletePreset('${p.id}')"><i class="ti ti-trash" aria-hidden="true" style="font-size:11px"></i></button>
+      </div>
+      ${pItems.map(i=>`<div class="cat-row"><div class="cat-name">${i.name}</div><div><span class="part-badge part-${i.part==='Pre-Production'?'pre':i.part==='Production'?'pro':'post'}">${i.part==='Pre-Production'?'Pre':i.part==='Production'?'Pro':'Post'}</span></div><div style="color:var(--muted)">${i.unit||'-'}</div><div style="text-align:right;color:var(--amber)">${fmt(i.cost)}</div><div style="text-align:right">${fmt(i.price)}</div><div></div><div></div></div>`).join('')}
+    </div>`;
+  }).join('');
+}
+function openAddPreset(){
+  openModal(`<h2>+ สร้าง Preset</h2>
+    <div class="mf"><label>ชื่อ Preset *</label><input id="pren" placeholder="เช่น MV Full Package"/></div>
+    <div class="mf"><label>คำอธิบาย</label><input id="pred" placeholder="รายละเอียด..."/></div>
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="savePreset()">สร้าง</button></div>`);
+}
+async function savePreset(){
+  const name=document.getElementById('pren').value.trim();if(!name)return;
+  await dbPost('qt_presets',{name,description:document.getElementById('pred').value});
+  closeModal();await loadAll();
+}
+async function deletePreset(id){if(!confirm('ลบ Preset นี้?'))return;await sb.from('qt_preset_items').delete().eq('preset_id',id);await sb.from('qt_presets').delete().eq('id',id);await loadAll();}
+
+/* EXPORT PDF */
+function exportPDF(){
+  setView('client');
+  setTimeout(()=>{window.print();},300);
+}
+
+function closeModal(){document.getElementById('moverlay').classList.remove('open');}
+function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('moverlay').classList.add('open');}
+
+window.onload=function(){
+  const url=localStorage.getItem('qt_sb_url'),key=localStorage.getItem('qt_sb_key');
+  if(url&&key){
+    document.getElementById('sb-url').value=url;
+    document.getElementById('sb-key').value=key;
+    SB_URL=url.replace(/\/$/,'');SB_KEY=key;
+    connectDB();
+  }
+};
+</script>
+</body>
+</html>
