@@ -138,7 +138,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .it-row:hover{background:var(--bg)}
 .it-row.cot-row{border-left:3px solid var(--purple)}
 /* internal cols: role+name | person | inout | qty | cost | price | mk | total | actions */
-.g-int{grid-template-columns:1.4fr .9fr 70px 45px 72px 72px 46px 70px 64px}
+.g-int{grid-template-columns:1.8fr 1fr 42px 75px 80px 44px 72px 52px}
 .g-cli{grid-template-columns:2fr 1fr 55px 85px 75px}
 .it-cell{display:flex;flex-direction:column;gap:1px}
 /* inline editable field */
@@ -491,38 +491,35 @@ function renderQT(){
   const margin=beforeVat>0?((profit/beforeVat)*100).toFixed(1):0;
 
   const renderHead=()=>isInt
-    ?`<div class="it-head g-int" style="font-size:10px"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
+    ?`<div class="it-head g-int"><div>ตำแหน่ง / ชื่อรายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
     :`<div class="it-head g-cli"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ราคา/unit</div><div style="text-align:right">รวม</div></div>`;
 
   const renderItem=(item)=>{
-    const tot=item.price*(item.qty||1);
+    const tot=(item.price||0)*(item.qty||1);
     const isOwn=item.is_cot;
-    const ioType=item.io_type||'inhouse';
-    if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}" id="irow-${item.id}">
-      <div class="it-cell">
-        <input class="ie role-txt" value="${item.item_role||''}" placeholder="ตำแหน่ง/ประเภท" onblur="patchItemLocal('${item.id}','item_role',this.value)"/>
-        <input class="ie sm-txt" value="${item.name||''}" placeholder="ชื่อรายการ" onblur="patchItemLocal('${item.id}','name',this.value)"/>
-        ${item.detail?`<input class="ie sm-txt" value="${item.detail||''}" placeholder="รายละเอียด" onblur="patchItemLocal('${item.id}','detail',this.value)" style="color:var(--hint)"/>`:`<input class="ie sm-txt" value="" placeholder="รายละเอียด..." onblur="patchItemLocal('${item.id}','detail',this.value)" style="color:var(--hint)"/>`}
+    const displayName=(item.item_role?item.item_role+' — ':'')+item.name+(item.item_person?' ('+item.item_person+')':'');
+    const displayDetail=item.detail||'';
+    if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}">
+      <div class="it-name-col">
+        <input class="ie name-ie" value="${item.item_role||''}" placeholder="ตำแหน่ง" onblur="patchItemLocal('${item.id}','item_role',this.value)" style="font-size:11px;color:var(--hint);font-weight:500"/>
+        <input class="ie name-ie" value="${item.name||''}" placeholder="ชื่อรายการ *" onblur="patchItemLocal('${item.id}','name',this.value)" style="font-weight:500"/>
       </div>
-      <div class="it-cell">
-        <input class="ie" value="${item.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchItemLocal('${item.id}','item_person',this.value)"/>
-      </div>
-<div></div>
-      <div style="padding:5px 6px;text-align:right"><input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)" style="width:40px"/></div>
-      <div><span class="it-cost-txt">${isOwn?'<span style="font-size:10px;color:var(--purple)">COT</span>':fmt(item.cost)}</span></div>
-      <div style="padding:5px 6px"><input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/></div>
-      <div style="padding:5px 6px"><input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/></div>
+      <input class="ie" value="${item.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchItemLocal('${item.id}','item_person',this.value)" style="font-size:12px"/>
+      <input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)" style="width:100%"/>
+      <div class="it-cost-txt">${isOwn?'<span class="cot-tag">COT</span>':fmt(item.cost)}</div>
+      <input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/>
+      <input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/>
       <div class="it-total-txt">${fmt(tot)}</div>
       <div class="it-actions">
-        <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="COT item">C</button>
+        <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="COT">C</button>
         <button class="btn danger sm" onclick="delItem('${item.id}')">✕</button>
       </div>
     </div>`;
     return `<div class="it-row g-cli">
-      <div class="it-cell">
-        <span style="font-size:11px;color:var(--hint);font-weight:500">${item.item_role||''}</span>
+      <div>
+        ${item.item_role?`<span style="font-size:11px;color:var(--hint);font-weight:500">${item.item_role} — </span>`:''}
         <span style="font-weight:500">${item.name}</span>
-        ${item.detail?`<span style="font-size:11px;color:var(--muted)">${item.detail}</span>`:''}
+        ${displayDetail?`<span style="font-size:11px;color:var(--muted)"> · ${displayDetail}</span>`:''}
       </div>
       <div>${item.item_person||''}</div>
       <div style="text-align:right">${item.qty||1} ${item.unit||''}</div>
@@ -899,13 +896,13 @@ function renderPreset(){
     return `<div class="section-block">
       <div class="section-head ${cls}"><div class="sh-title">${label}</div><div class="sh-total">${si.length} รายการ</div></div>
       <div>
-        <div class="it-head g-int"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
+        <div class="it-head g-int"><div>ตำแหน่ง / ชื่อรายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
         ${si.map(i=>`<div class="it-row g-int">
-          <div class="it-cell">
-            <input class="ie role-txt" value="${i.item_role||''}" placeholder="ตำแหน่ง" onblur="patchPI('${i.id}','item_role',this.value)"/>
-            <input class="ie sm-txt" value="${i.name||''}" placeholder="ชื่อรายการ" onblur="patchPI('${i.id}','name',this.value)"/>
+          <div class="it-name-col">
+            <input class="ie name-ie" value="${i.item_role||''}" placeholder="ตำแหน่ง" onblur="patchPI('${i.id}','item_role',this.value)" style="font-size:11px;color:var(--hint)"/>
+            <input class="ie name-ie" value="${i.name||''}" placeholder="ชื่อรายการ" onblur="patchPI('${i.id}','name',this.value)" style="font-weight:500"/>
           </div>
-          <div><input class="ie" value="${i.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchPI('${i.id}','item_person',this.value)"/></div>
+          <input class="ie" value="${i.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchPI('${i.id}','item_person',this.value)"/>
 
           <div><input class="ie num" value="${i.qty||1}" onblur="patchPINum('${i.id}','qty',+this.value)"/></div>
           <div class="it-cost-txt">${fmt(i.cost)}</div>
