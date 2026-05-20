@@ -133,8 +133,8 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .sh-chev.open{transform:rotate(180deg)}
 
 /* ITEM TABLE — inline editable */
-.it-head{display:grid;padding:5px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px;align-items:center}
-.it-row{display:grid;padding:5px 10px;border-bottom:1px solid var(--border);font-size:12px;align-items:center;transition:background .1s;gap:4px}
+.it-head{display:grid;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px;align-items:center}
+.it-row{display:grid;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;align-items:start;transition:background .1s;gap:4px}
 .it-row:hover{background:var(--bg)}
 .it-row.cot-row{border-left:3px solid var(--purple)}
 /* internal cols: role+name | person | inout | qty | cost | price | mk | total | actions */
@@ -508,11 +508,11 @@ function renderQT(){
         <input class="ie" value="${item.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchItemLocal('${item.id}','item_person',this.value)"/>
       </div>
 <div></div>
-      <div><input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)"/></div>
-      <div><span class="it-cost-txt">${isOwn?'<span style="font-size:10px;color:var(--purple)">COT</span>':fmt(item.cost)}</span></div>
+      <div style="padding-top:2px"><input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)"/></div>
+      <div style="padding-top:2px"><span class="it-cost-txt">${isOwn?'<span style="font-size:10px;color:var(--purple)">COT</span>':fmt(item.cost)}</span></div>
       <div><input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/></div>
       <div><input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/></div>
-      <div class="it-total-txt">${fmt(tot)}</div>
+      <div class="it-total-txt" style="padding-top:2px">${fmt(tot)}</div>
       <div class="it-actions">
         <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="COT item">C</button>
         <button class="btn danger sm" onclick="delItem('${item.id}')">✕</button>
@@ -819,6 +819,14 @@ async function doNewProj(){
 }
 
 /* CATALOGUE */
+function catFocus(el){el.value=el.dataset.raw||'0';}
+async function catBlur(el){
+  const raw=el.value.replace(/,/g,'');
+  const n=Number(raw)||0;
+  el.dataset.raw=n;
+  el.value=fmt(n);
+  await patchCat(el.dataset.id,el.dataset.field,n);
+}
 function renderCat(){
   const q=(document.getElementById('cat-q')?.value||'').toLowerCase();
   let list=catalogue.filter(c=>catFilter==='all'||c.part===catFilter);
@@ -831,8 +839,8 @@ function renderCat(){
       <div style="font-weight:500">${c.name}</div>
       <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
       <div><input class="ci" value="${c.unit||''}" onblur="patchCatTxt('${c.id}','unit',this.value)" style="text-align:left"/></div>
-      <div><input class="ci num" data-val="${c.cost_min||0}" value="${fmt(c.cost_min||0)}" onfocus="this.value=this.dataset.val" onblur="this.dataset.val=this.value;patchCat('${c.id}','cost_min',+this.value);this.value=fmt(+this.value||0)" style="width:80px"/></div>
-      <div><input class="ci num" data-val="${c.cost_max||0}" value="${fmt(c.cost_max||0)}" onfocus="this.value=this.dataset.val" onblur="this.dataset.val=this.value;patchCat('${c.id}','cost_max',+this.value);this.value=fmt(+this.value||0)" style="width:80px"/></div>
+      <div><input class="ci num" data-raw="${c.cost_min||0}" data-id="${c.id}" data-field="cost_min" value="${fmt(c.cost_min||0)}" onfocus="catFocus(this)" onblur="catBlur(this)" style="width:80px"/></div>
+      <div><input class="ci num" data-raw="${c.cost_max||0}" data-id="${c.id}" data-field="cost_max" value="${fmt(c.cost_max||0)}" onfocus="catFocus(this)" onblur="catBlur(this)" style="width:80px"/></div>
       <div><input class="ci" value="${c.notes||''}" onblur="patchCatTxt('${c.id}','notes',this.value)" style="text-align:left"/></div>
       <div style="display:flex;gap:4px;justify-content:flex-end">
         <button class="btn ghost sm" onclick="cloneCat('${c.id}')">📋</button>
@@ -852,16 +860,16 @@ async function cloneCat(id){
 }
 function openAddCat(){
   openModal(`<h2>+ เพิ่มรายการ Catalogue</h2>
-    <div class="mf"><label>ชื่อ *</label><input id="cn" placeholder="เช่น Director (with storyboard)"/></div>
+    <div class="mf"><label>ชื่อรายการหลัก *</label><input id="cn" placeholder="เช่น Director, Camera Package A..."/></div>
     <div class="mf-row">
       <div class="mf"><label>หมวด</label><select id="cp"><option>Pre-Production</option><option>Production</option><option>Post-Production</option></select></div>
       <div class="mf"><label>Unit</label><input id="cu" placeholder="day/lot/role..."/></div>
     </div>
     <div class="mf-row">
-      <div class="mf"><label>ราคา Min</label><input id="cmin" type="number" value="0"/></div>
-      <div class="mf"><label>ราคา Max</label><input id="cmax" type="number" value="0"/></div>
+      <div class="mf"><label>ราคา Min</label><input id="cmin" type="number" value="0" placeholder="0"/></div>
+      <div class="mf"><label>ราคา Max</label><input id="cmax" type="number" value="0" placeholder="0"/></div>
     </div>
-    <div class="mf"><label>หมายเหตุ</label><textarea id="cnotes"></textarea></div>
+    <div class="mf"><label>หมายเหตุ / รายละเอียดอุปกรณ์</label><textarea id="cnotes" placeholder="เช่น Sony FX3 + Tamron 28-75mm, รายละเอียดเพิ่มเติม..."></textarea></div>
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddCat()">บันทึก</button></div>`);
   setTimeout(()=>document.getElementById('cn')?.focus(),100);
 }
