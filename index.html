@@ -138,7 +138,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .it-row:hover{background:var(--bg)}
 .it-row.cot-row{border-left:3px solid var(--purple)}
 /* internal cols: role+name | person | inout | qty | cost | price | mk | total | actions */
-.g-int{grid-template-columns:1.8fr 1fr 42px 72px 78px 44px 68px 88px}
+.g-int{grid-template-columns:1.8fr 1fr 42px 72px 78px 44px 68px 112px}
 .g-cli{grid-template-columns:2fr 1fr 55px 85px 75px}
 .it-cell{display:flex;flex-direction:column;gap:1px}
 /* inline editable field */
@@ -273,6 +273,11 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
         <div class="sb-label">โปรเจค</div>
         <div id="proj-list"></div>
         <button class="dashed-btn" onclick="openNewProj()">+ โปรเจคใหม่</button>
+        <div style="display:flex;align-items:center;cursor:pointer;padding:4px 6px;border-radius:var(--rsm);margin-top:2px" onclick="toggleArchiveSection()" title="โปรเจคที่ archive">
+          <span style="font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.4px;flex:1">📁 Archived</span>
+          <span id="arch-chev" style="font-size:9px;color:var(--hint)">▶</span>
+        </div>
+        <div id="arch-list" style="display:none"></div>
         <div class="sb-divider"></div>
         <div class="sb-label" id="ver-label" style="display:none">Versions</div>
         <div id="ver-list"></div>
@@ -406,9 +411,23 @@ function renderSidebar(){
   document.getElementById('proj-list').innerHTML=projects.filter(p=>!p.archived).map(p=>{
     const cnt=quotations.filter(q=>q.project_id===p.id).length;
     return `<div class="sb-item ${activeProjId===p.id?'active':''}" onclick="selectProj('${p.id}')">
-      <div class="sb-dot"></div><span style="flex:1">${p.name}</span><span class="sb-meta">${cnt}v</span>
+      <div class="sb-dot"></div>
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span>
+      <span class="sb-meta">${cnt}v</span>
+      <button onclick="event.stopPropagation();archiveProj('${p.id}')" style="background:transparent;border:none;cursor:pointer;color:var(--hint);padding:0 2px;font-size:11px;opacity:.5;line-height:1" title="Archive โปรเจค">⊖</button>
     </div>`;
   }).join('')||'<div style="font-size:11px;color:var(--hint);padding:6px 8px">ยังไม่มีโปรเจค</div>';
+
+  const archived=projects.filter(p=>p.archived);
+  const archList=document.getElementById('arch-list');
+  if(archList){
+    archList.innerHTML=archived.map(p=>`
+      <div class="sb-item" style="opacity:.65">
+        <span style="font-size:10px">📁</span>
+        <span style="flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span>
+        <button onclick="restoreProj('${p.id}')" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 6px;font-family:'Sarabun',sans-serif" title="คืนค่าโปรเจค">↩ คืน</button>
+      </div>`).join('')||'';
+  }
 
   const vl=document.getElementById('ver-list');
   const vLabel=document.getElementById('ver-label');
@@ -416,11 +435,15 @@ function renderSidebar(){
   if(activeProjId){
     const proj=projects.find(p=>p.id===activeProjId);
     vLabel.style.display='block';vLabel.textContent=proj?.name||'Versions';nvBtn.style.display='block';
+    const statusStyle=s=>s==='final'?'background:#EAF5EE;color:var(--green)':s==='sent'?'background:var(--blue-bg);color:var(--blue)':'background:var(--card2);color:var(--hint)';
     vl.innerHTML=quotations.filter(q=>q.project_id===activeProjId).map(q=>`
       <div class="sb-item ${activeQTId===q.id?'active':''}" onclick="selectQT('${q.id}')">
         <span style="font-size:11px">📄</span>
-        <div style="flex:1">
-          <div>${q.version_name}${q.status==='final'?' ✓':''}</div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+            <span>${q.version_name}</span>
+            <span style="font-size:9px;padding:1px 5px;border-radius:3px;font-weight:600;${statusStyle(q.status)}">${q.status||'draft'}</span>
+          </div>
           ${q.version_note?`<div class="sb-note">${q.version_note.substring(0,24)}</div>`:''}
         </div>
       </div>`).join('')||'<div style="font-size:11px;color:var(--hint);padding:6px 8px">ยังไม่มีใบ</div>';
@@ -492,7 +515,7 @@ function renderQT(){
   const margin=beforeVat>0?((profit/beforeVat)*100).toFixed(1):0;
 
   const renderHead=()=>isInt
-    ?`<div class="it-head g-int"><div>ตำแหน่ง / ชื่อรายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
+    ?`<div class="it-head g-int"><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
     :`<div class="it-head g-cli"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ราคา/unit</div><div style="text-align:right">รวม</div></div>`;
 
   const renderItem=(item)=>{
@@ -501,26 +524,27 @@ function renderQT(){
     const isP=(item.io_type||'person')==='person';
     if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}">
       <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
-        <input class="ie role-txt" value="${esc(item.item_role)}" placeholder="${isP?'ตำแหน่ง':'ชนิด'}" onblur="patchItemLocal('${item.id}','item_role',this.value)"/>
-        <input class="ie" value="${esc(item.name)}" placeholder="ชื่อรายการ *" onblur="patchItemLocal('${item.id}','name',this.value)" style="font-weight:500;font-size:12px;padding:1px 4px"/>
+        <input class="ie" value="${esc(item.item_role)}" placeholder="${isP?'ตำแหน่ง *':'ชนิด *'}" onblur="patchItemLocal('${item.id}','item_role',this.value)" style="font-weight:600;font-size:12px"/>
+        <input class="ie sm-txt" value="${esc(item.name)}" placeholder="คำอธิบายเพิ่มเติม..." onblur="patchItemLocal('${item.id}','name',this.value)"/>
       </div>
       <input class="ie" value="${esc(item.item_person)}" placeholder="${isP?'ชื่อ':'รุ่น/Model'}" onblur="patchItemLocal('${item.id}','item_person',this.value)" style="font-size:12px"/>
       <input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)" style="width:100%"/>
-      <input class="ie num" value="${isOwn?0:(item.cost||0)}" onblur="patchItemNum('${item.id}','cost',this.value)" style="color:${isOwn?'var(--purple);opacity:.5':'var(--amber)'}" ${isOwn?'title="COT: ต้นทุนนับ 0 ในกำไร"':''}/>
+      <input class="ie num" value="${item.cost||0}" onblur="patchItemNum('${item.id}','cost',this.value)" style="color:var(--amber);${isOwn?'text-decoration:line-through;opacity:.6':''}" title="${isOwn?'COT: ต้นทุนไม่นับในกำไร แต่ยังใช้คำนวณ MK ได้':''}"/>
       <input class="ie num" value="${item.price||0}" onblur="patchItemNum('${item.id}','price',this.value)"/>
       <input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/>
       <div class="it-total-txt">${fmt(tot)}</div>
       <div class="it-actions">
-        <button class="btn ghost sm" onclick="toggleItemType('${item.id}','${isP?'item':'person'}')" title="${isP?'บุคคล → สินค้า':'สินค้า → บุคคล'}" style="font-size:13px;padding:2px 6px">${isP?'👤':'📦'}</button>
-        <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="COT flag">C</button>
+        <button class="btn ghost sm" onclick="openEditItem('${item.id}')" title="แก้ไข" style="padding:2px 6px">✏</button>
+        <button class="btn ghost sm" onclick="toggleItemType('${item.id}','${isP?'item':'person'}')" title="${isP?'บุคคล → สินค้า':'สินค้า → บุคคล'}" style="font-size:12px;padding:2px 5px">${isP?'👤':'📦'}</button>
+        <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="${isOwn?'COT ON: ต้นทุนไม่นับกำไร':'COT OFF'}">C</button>
         <button class="btn danger sm" onclick="delItem('${item.id}')">✕</button>
       </div>
     </div>`;
     return `<div class="it-row g-cli">
       <div>
-        ${item.item_role?`<span style="font-size:11px;color:var(--hint);font-weight:500">${esc(item.item_role)} — </span>`:''}
-        <span style="font-weight:500">${esc(item.name)}</span>
-        ${item.detail?`<span style="font-size:11px;color:var(--muted)"> · ${esc(item.detail)}</span>`:''}
+        <span style="font-weight:600">${esc(item.item_role)||esc(item.name)||'-'}</span>
+        ${item.name&&item.item_role?`<span style="font-size:11px;color:var(--muted)"> · ${esc(item.name)}</span>`:''}
+        ${item.detail?`<span style="font-size:11px;color:var(--muted)"> ${esc(item.detail)}</span>`:''}
       </div>
       <div>${esc(item.item_person)}</div>
       <div style="text-align:right">${item.qty||1}${item.unit?' '+item.unit:''}</div>
@@ -715,7 +739,7 @@ function openAddItem(section,isExtra){
       <div class="mf"><label id="ai-role-label">ตำแหน่ง</label><input id="ai-role" placeholder="DOP, ตากล้อง..."/></div>
       <div class="mf"><label id="ai-person-label">ชื่อ</label><input id="ai-person" placeholder="ขิม, สมชาย..."/></div>
     </div>
-    <div class="mf"><label>ชื่อรายการ *</label><input id="ai-name" placeholder="ระบุชื่อ..."/></div>
+    <div class="mf"><label>คำอธิบายเพิ่มเติม</label><input id="ai-name" placeholder="รายละเอียด, หมายเหตุ... (ไม่บังคับ)"/></div>
     <div class="mf"><label>รายละเอียด</label><input id="ai-detail" placeholder="รายละเอียดเพิ่มเติม..."/></div>
     <div class="mf-row">
       <div class="mf"><label>Unit</label><input id="ai-unit" placeholder="day/lot..."/></div>
@@ -731,13 +755,15 @@ function openAddItem(section,isExtra){
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn ghost" onclick="saveAddItemAndCat('${section}',${isExtra})" title="เพิ่มรายการและบันทึกลง Catalogue">+ บันทึกลง Catalogue</button><button class="btn primary" onclick="saveAddItem('${section}',${isExtra})">เพิ่มใบ QT</button></div>`);
 }
 async function saveAddItemAndCat(section,isExtra){
+  const role=document.getElementById('ai-role').value.trim();
   const name=document.getElementById('ai-name').value.trim();
-  if(!name)return alert('กรุณาระบุชื่อ');
+  if(!role)return alert('กรุณาระบุตำแหน่ง/ชนิด');
   const cost=+document.getElementById('ai-cost').value||0;
   const cat=await dbPost('qt_catalogue',{
-    name,part:isExtra?'Pre-Production':section,
+    name:role+(name?' — '+name:''),
+    part:isExtra?'Pre-Production':section,
     unit:document.getElementById('ai-unit').value||'',
-    item_role:document.getElementById('ai-role')?.value||'',
+    item_role:role,
     item_person:document.getElementById('ai-person')?.value||'',
     cost_min:cost,cost_max:cost,
     notes:document.getElementById('ai-detail').value||''
@@ -770,7 +796,9 @@ function calcMkP(){
   if(mk>0&&cost>0)document.getElementById('ai-price').value=Math.round(cost*(1+mk/100));
 }
 async function saveAddItem(section,isExtra){
-  const name=document.getElementById('ai-name').value.trim();if(!name)return alert('กรุณาระบุชื่อ');
+  const role=document.getElementById('ai-role').value.trim();
+  const name=document.getElementById('ai-name').value.trim();
+  if(!role)return alert('กรุณาระบุตำแหน่ง/ชนิด');
   const cost=+document.getElementById('ai-cost').value||0;
   const mk=+document.getElementById('ai-mk').value||0;
   let price=+document.getElementById('ai-price').value||0;
@@ -815,8 +843,21 @@ async function doSaveAsPreset(){
     const its=qItems.filter(i=>i.quotation_id===activeQTId);
     let idx=0;
     for(const i of its){
-      const {id:_,created_at:__,quotation_id:___,...d}=i;
-      const pi=await dbPost('qt_preset_items',{...d,preset_id:ps.id,sort_order:idx++});
+      const pi=await dbPost('qt_preset_items',{
+        preset_id:ps.id,
+        section:i.section,
+        name:i.name||'',
+        item_role:i.item_role||'',
+        item_person:i.item_person||'',
+        detail:i.detail||'',
+        unit:i.unit||'',
+        qty:i.qty||1,
+        cost:i.cost||0,
+        price:i.price||0,
+        markup_pct:i.markup_pct||0,
+        is_extra:i.is_extra||false,
+        sort_order:idx++
+      });
       if(pi)presetItems.push(pi);
     }
     presets.push(ps);activePresetId=ps.id;
@@ -971,7 +1012,7 @@ function renderPreset(){
     return `<div class="section-block">
       <div class="section-head ${cls}"><div class="sh-title">${label}</div><div class="sh-total">${si.length} รายการ</div></div>
       <div>
-        <div class="it-head g-int"><div>ตำแหน่ง / ชื่อรายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
+        <div class="it-head g-int"><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
         ${si.map(i=>`<div class="it-row g-int">
           <div class="it-name-col">
             <input class="ie name-ie" value="${i.item_role||''}" placeholder="ตำแหน่ง" onblur="patchPI('${i.id}','item_role',this.value)" style="font-size:11px;color:var(--hint)"/>
@@ -1116,9 +1157,105 @@ async function doAddPreset(){
   closeModal();renderPresetSidebar();renderPreset();
 }
 
-/* NEED SQL: io_type column */
-async function ensureIOColumn(){
-  // silently handle if io_type doesn't exist yet - items without it default to inhouse
+/* PROJECT ARCHIVE */
+async function archiveProj(id){
+  if(!confirm('Archive โปรเจคนี้? (ซ่อนชั่วคราว ข้อมูลยังอยู่ครบ)'))return;
+  await dbPatch('qt_projects','id=eq.'+id,{archived:true});
+  projects=projects.map(p=>p.id===id?{...p,archived:true}:p);
+  if(activeProjId===id){
+    activeProjId=null;activeQTId=null;
+    document.getElementById('qt-main').innerHTML='<div class="empty" style="margin:auto;padding:4rem">เลือกโปรเจคหรือกด "+ ใบใหม่" ครับ</div>';
+  }
+  renderSidebar();
+}
+async function restoreProj(id){
+  await dbPatch('qt_projects','id=eq.'+id,{archived:false});
+  projects=projects.map(p=>p.id===id?{...p,archived:false}:p);
+  renderSidebar();
+  const archList=document.getElementById('arch-list');
+  if(archList&&archList.style.display!=='none'){}
+}
+function toggleArchiveSection(){
+  const list=document.getElementById('arch-list');
+  const chev=document.getElementById('arch-chev');
+  const open=list.style.display==='none';
+  list.style.display=open?'':'none';
+  if(chev)chev.textContent=open?'▼':'▶';
+}
+
+/* EDIT ITEM MODAL */
+function openEditItem(id){
+  const item=qItems.find(i=>i.id===id);if(!item)return;
+  const isP=(item.io_type||'person')==='person';
+  openModal(`<h2>✏ แก้ไขรายการ</h2>
+    <div class="mf" style="margin-bottom:8px"><label>ประเภทรายการ</label>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button id="ei-t-person" class="${isP?'btn primary sm':'btn ghost sm'}" onclick="setEIType('person')">👤 บุคคล</button>
+        <button id="ei-t-item" class="${isP?'btn ghost sm':'btn primary sm'}" onclick="setEIType('item')">📦 สินค้า/อุปกรณ์</button>
+      </div></div>
+    <div class="mf-row">
+      <div class="mf"><label id="ei-role-label">${isP?'ตำแหน่ง':'ชนิด/ประเภท'}</label><input id="ei-role" value="${esc(item.item_role)}" placeholder="${isP?'เช่น DOP...':'เช่น กล้อง...'}"/></div>
+      <div class="mf"><label id="ei-person-label">${isP?'ชื่อ':'รุ่น/Model'}</label><input id="ei-person" value="${esc(item.item_person)}" placeholder="${isP?'เช่น ขิม...':'เช่น Sony FX3...'}"/></div>
+    </div>
+    <div class="mf"><label>คำอธิบายเพิ่มเติม</label><input id="ei-name" value="${esc(item.name)}" placeholder="รายละเอียด, หมายเหตุ..."/></div>
+    <div class="mf"><label>Detail</label><input id="ei-detail" value="${esc(item.detail)}" placeholder="รายละเอียดเพิ่มเติม..."/></div>
+    <div class="mf-row">
+      <div class="mf"><label>Unit</label><input id="ei-unit" value="${esc(item.unit)}" placeholder="day/lot..."/></div>
+      <div class="mf"><label>จำนวน</label><input id="ei-qty" type="number" value="${item.qty||1}" min="1"/></div>
+    </div>
+    <div class="mf-row">
+      <div class="mf"><label>ต้นทุน/unit</label><input id="ei-cost" type="number" value="${item.cost||0}" oninput="calcEIMkP()"/></div>
+      <div class="mf"><label>ราคาขาย/unit</label><input id="ei-price" type="number" value="${item.price||0}"/></div>
+    </div>
+    <div class="mf"><label>Markup %</label><input id="ei-mk" type="number" value="${item.markup_pct||0}" oninput="calcEIMkP()"/></div>
+    <div class="mf"><label>Section</label>
+      <select id="ei-section">
+        <option value="Pre-Production" ${item.section==='Pre-Production'?'selected':''}>Pre-Production</option>
+        <option value="Production" ${item.section==='Production'?'selected':''}>Production</option>
+        <option value="Post-Production" ${item.section==='Post-Production'?'selected':''}>Post-Production</option>
+      </select></div>
+    <div class="mfooter">
+      <button class="btn" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn primary" onclick="doEditItem('${item.id}')">บันทึก</button>
+    </div>`);
+}
+function setEIType(type){
+  const p=type==='person';
+  const bp=document.getElementById('ei-t-person');const bi=document.getElementById('ei-t-item');
+  if(bp)bp.className=p?'btn primary sm':'btn ghost sm';
+  if(bi)bi.className=p?'btn ghost sm':'btn primary sm';
+  const rl=document.getElementById('ei-role-label');const pl=document.getElementById('ei-person-label');
+  const ri=document.getElementById('ei-role');const pi=document.getElementById('ei-person');
+  if(rl)rl.textContent=p?'ตำแหน่ง':'ชนิด/ประเภท';
+  if(pl)pl.textContent=p?'ชื่อ':'รุ่น/Model';
+  if(ri)ri.placeholder=p?'เช่น DOP, Producer...':'เช่น กล้อง, Lighting...';
+  if(pi)pi.placeholder=p?'เช่น ขิม, สมชาย...':'เช่น Sony FX3, ARRI...';
+}
+function calcEIMkP(){
+  const cost=+document.getElementById('ei-cost')?.value||0;
+  const mk=+document.getElementById('ei-mk')?.value||0;
+  if(mk>0&&cost>0)document.getElementById('ei-price').value=Math.round(cost*(1+mk/100));
+}
+async function doEditItem(id){
+  const isP=document.getElementById('ei-t-person')?.className.includes('primary');
+  const cost=+document.getElementById('ei-cost').value||0;
+  const mk=+document.getElementById('ei-mk').value||0;
+  let price=+document.getElementById('ei-price').value||0;
+  if(mk>0&&cost>0)price=Math.round(cost*(1+mk/100));
+  const data={
+    item_role:document.getElementById('ei-role').value,
+    item_person:document.getElementById('ei-person').value,
+    name:document.getElementById('ei-name').value,
+    detail:document.getElementById('ei-detail').value,
+    unit:document.getElementById('ei-unit').value,
+    qty:+document.getElementById('ei-qty').value||1,
+    cost,price,markup_pct:mk,
+    section:document.getElementById('ei-section').value,
+    io_type:isP?'person':'item'
+  };
+  await dbPatch('qt_items','id=eq.'+id,data);
+  qItems=qItems.map(i=>i.id===id?{...i,...data}:i);
+  closeModal();renderQT();
 }
 
 function exportPDF(){const prev=currentView;setView('client');setTimeout(()=>{window.print();setTimeout(()=>setView(prev),500);},400);}
