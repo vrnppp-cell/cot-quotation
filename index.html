@@ -886,7 +886,7 @@ function renderCat(){
   const wrap=document.getElementById('cat-wrap');if(!wrap)return;
   if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
   wrap.innerHTML=`<div class="cat-table">
-    <div class="cat-head"><div>หมวด</div><div>ชื่อรายการ</div><div>ตำแหน่ง/ชนิด</div><div>ชื่อ/รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>ชื่อรายการ</div><div>ตำแหน่ง/ประเภท</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ / รายละเอียด</div><div style="text-align:right">จัดการ</div></div>
+    <div class="cat-head"><div>หมวด</div>
     ${list.map(c=>`<div class="cat-row">
       <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
       <div style="font-weight:500">${c.name}</div>
