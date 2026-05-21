@@ -756,6 +756,22 @@ function setAIType(type){
   if(pi)pi.placeholder=isPerson?'เช่น ขิม, สมชาย...':'เช่น Sony FX3, ARRI...';
 }
 
+async function saveAddItemAndCat(section,isExtra){
+  const name=document.getElementById('ai-name').value.trim();
+  if(!name)return alert('กรุณาระบุชื่อ');
+  const cost=+document.getElementById('ai-cost').value||0;
+  const cat=await dbPost('qt_catalogue',{
+    name,part:isExtra?'Pre-Production':section,
+    unit:document.getElementById('ai-unit').value||'',
+    item_role:document.getElementById('ai-role')?.value||'',
+    item_person:document.getElementById('ai-person')?.value||'',
+    cost_min:cost,cost_max:cost,
+    notes:document.getElementById('ai-detail').value||''
+  });
+  if(cat)catalogue.push(cat);
+  await saveAddItem(section,isExtra);
+}
+
 function filterCP(q,sec,isExtra){
   const cats=(isExtra?catalogue:catalogue.filter(c=>c.part===sec)).filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
   document.getElementById('cp-list').innerHTML=cats.map(c=>`<div class="cp-row" onclick="fillCat('${c.id}')">
@@ -870,7 +886,7 @@ function renderCat(){
   const wrap=document.getElementById('cat-wrap');if(!wrap)return;
   if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
   wrap.innerHTML=`<div class="cat-table">
-    <div class="cat-head"><div>หมวด</div><div>ชื่อ/ประเภท</div><div>ตำแหน่ง/ชนิด</div><div>ชื่อ/รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>ชื่อรายการ</div><div>ตำแหน่ง/ประเภท</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ / รายละเอียด</div><div style="text-align:right">จัดการ</div></div>
+    <div class="cat-head"><div>หมวด</div><div>ชื่อรายการ</div><div>ตำแหน่ง/ชนิด</div><div>ชื่อ/รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>ชื่อรายการ</div><div>ตำแหน่ง/ประเภท</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div>จัดการ</div></div><div>หมวด</div><div>Unit</div><div style="text-align:right">ราคา Min</div><div style="text-align:right">ราคา Max</div><div>หมายเหตุ / รายละเอียด</div><div style="text-align:right">จัดการ</div></div>
     ${list.map(c=>`<div class="cat-row">
       <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
       <div style="font-weight:500">${c.name}</div>
@@ -896,6 +912,37 @@ function setCatType(type){
   document.getElementById('cp2').placeholder=isPerson?'เช่น ขิม, สมชาย...':'เช่น Sony FX3, ARRI...';
 }
 
+function setCatType(type){
+  const p=type==='person';
+  const bp=document.getElementById('cat-t-person');
+  const bi=document.getElementById('cat-t-item');
+  if(bp)bp.className=p?'btn primary sm':'btn ghost sm';
+  if(bi)bi.className=p?'btn ghost sm':'btn primary sm';
+  const rl=document.getElementById('cr-label');
+  const pl=document.getElementById('cp2-label');
+  const ri=document.getElementById('cr');
+  const pi=document.getElementById('cp2');
+  if(rl)rl.textContent=p?'ตำแหน่ง':'ชนิด/ประเภท';
+  if(pl)pl.textContent=p?'ชื่อ':'รุ่น/Model';
+  if(ri)ri.placeholder=p?'เช่น DOP, Producer...':'เช่น กล้อง, Lighting...';
+  if(pi)pi.placeholder=p?'เช่น ขิม, สมชาย...':'เช่น Sony FX3, ARRI...';
+}
+function setAIType(type){
+  const p=type==='person';
+  const bp=document.getElementById('ai-t-person');
+  const bi=document.getElementById('ai-t-item');
+  if(bp)bp.className=p?'btn primary sm':'btn ghost sm';
+  if(bi)bi.className=p?'btn ghost sm':'btn primary sm';
+  const rl=document.getElementById('ai-role-label');
+  const pl=document.getElementById('ai-person-label');
+  const ri=document.getElementById('ai-role');
+  const pi=document.getElementById('ai-person');
+  if(rl)rl.textContent=p?'ตำแหน่ง':'ชนิด/ประเภท';
+  if(pl)pl.textContent=p?'ชื่อ':'รุ่น/Model';
+  if(ri)ri.placeholder=p?'เช่น DOP, Producer...':'เช่น กล้อง, Lighting...';
+  if(pi)pi.placeholder=p?'เช่น ขิม, สมชาย...':'เช่น Sony FX3, ARRI...';
+}
+
 function filterCat(f,el){catFilter=f;document.querySelectorAll('.cat-fb').forEach(b=>b.classList.remove('active'));el.classList.add('active');renderCat();}
 async function patchCat(id,f,v){await dbPatch('qt_catalogue','id=eq.'+id,{[f]:+v||0});catalogue=catalogue.map(c=>c.id===id?{...c,[f]:+v||0}:c);}
 async function patchCatTxt(id,f,v){await dbPatch('qt_catalogue','id=eq.'+id,{[f]:v});catalogue=catalogue.map(c=>c.id===id?{...c,[f]:v}:c);}
@@ -908,27 +955,27 @@ async function cloneCat(id){
 }
 function openAddCat(){
   openModal(`<h2>+ เพิ่มรายการ Catalogue</h2>
-    <div class="mf" style="margin-bottom:8px">
-      <label>ประเภทรายการ</label>
+    <div class="mf" style="margin-bottom:8px"><label>ประเภทรายการ</label>
       <div style="display:flex;gap:6px;margin-top:4px">
         <button id="cat-t-person" class="btn primary sm" onclick="setCatType('person')">👤 บุคคล</button>
         <button id="cat-t-item" class="btn ghost sm" onclick="setCatType('item')">📦 สินค้า/อุปกรณ์</button>
-      </div>
-    </div>
+      </div></div>
     <div class="mf-row">
       <div class="mf"><label>หมวด</label><select id="cp"><option>Pre-Production</option><option>Production</option><option>Post-Production</option></select></div>
       <div class="mf"><label>Unit</label><input id="cu" placeholder="day/lot/role..."/></div>
     </div>
     <div class="mf"><label>ชื่อรายการหลัก *</label><input id="cn" placeholder="เช่น Director, Camera Package..."/></div>
-    <div class="mf"><label id="cr-label">ตำแหน่ง</label><input id="cr" placeholder="เช่น DOP, ตากล้อง..."/></div>
-    <div class="mf"><label id="cp2-label">ชื่อ</label><input id="cp2" placeholder="เช่น ขิม, สมชาย..."/></div>
+    <div class="mf-row">
+      <div class="mf"><label id="cr-label">ตำแหน่ง</label><input id="cr" placeholder="เช่น DOP..."/></div>
+      <div class="mf"><label id="cp2-label">ชื่อ</label><input id="cp2" placeholder="เช่น ขิม..."/></div>
+    </div>
     <div class="mf-row">
       <div class="mf"><label>ราคา Min</label><input id="cmin" type="number" value="0"/></div>
       <div class="mf"><label>ราคา Max</label><input id="cmax" type="number" value="0"/></div>
     </div>
     <div class="mf"><label>หมายเหตุ / รายละเอียด</label><textarea id="cnotes" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
-    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddCat()">บันทึก</button></div>\`);
-  setTimeout(()=>{document.getElementById('cn')?.focus();setCatType('person');},100);,100);
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddCat()">บันทึก</button></div>`);
+  setTimeout(()=>{document.getElementById('cn')?.focus();setCatType('person');},100);
 }
 async function doAddCat(){
   const name=document.getElementById('cn').value.trim();if(!name)return;
