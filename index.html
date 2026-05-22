@@ -223,6 +223,22 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .cp-row.sel{background:#EAF0EE}
 .empty{text-align:center;padding:3rem;color:var(--hint);font-size:13px}
 
+/* CALCULATOR */
+.calc-wrap{margin-top:auto;border-top:1px solid var(--border);padding-top:6px}
+.calc-hd{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.4px;cursor:pointer;padding:3px 6px;border-radius:var(--rsm);user-select:none}
+.calc-hd:hover{background:var(--bg);color:var(--text)}
+.calc-body{display:none;padding:4px 0 2px}
+.calc-body.open{display:block}
+.calc-disp{background:var(--card2);border:1px solid var(--border);border-radius:var(--rsm);padding:5px 8px;text-align:right;font-size:14px;font-family:'IBM Plex Sans Thai',sans-serif;font-weight:600;color:var(--text);min-height:30px;margin-bottom:4px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px}
+.ck{padding:5px 2px;border-radius:4px;border:1px solid var(--border);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);cursor:pointer;text-align:center;transition:all .1s;line-height:1}
+.ck:hover{background:var(--bg);border-color:var(--border2)}
+.ck.op{background:var(--forest);color:#fff;border-color:var(--forest)}
+.ck.op:hover{background:var(--dforest)}
+.ck.eq{background:var(--gold);color:var(--brown);border-color:var(--gold);grid-column:span 2}
+.ck.eq:hover{background:var(--gold2)}
+.ck.clr{color:var(--red)}
+
 /* PRINT */
 @media print{
   .topbar,.sidebar,.sum-actions-left,.sum-actions-right,.it-actions,.add-row,.btn,
@@ -282,6 +298,33 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
         <div class="sb-label" id="ver-label" style="display:none">Versions</div>
         <div id="ver-list"></div>
         <button class="dashed-btn" id="new-ver-btn" style="display:none" onclick="cloneQT()">+ Version ใหม่</button>
+        <div class="calc-wrap">
+          <div class="calc-hd" onclick="toggleCalc()"><span>🧮</span><span style="flex:1">Calculator</span><span id="calc-chev">▶</span></div>
+          <div class="calc-body" id="calc-body">
+            <div class="calc-disp" id="calc-disp">0</div>
+            <div class="calc-grid">
+              <button class="ck clr" onclick="calcBtn('C')">C</button>
+              <button class="ck" onclick="calcBtn('±')">±</button>
+              <button class="ck" onclick="calcBtn('%')">%</button>
+              <button class="ck op" onclick="calcBtn('÷')">÷</button>
+              <button class="ck" onclick="calcBtn('7')">7</button>
+              <button class="ck" onclick="calcBtn('8')">8</button>
+              <button class="ck" onclick="calcBtn('9')">9</button>
+              <button class="ck op" onclick="calcBtn('×')">×</button>
+              <button class="ck" onclick="calcBtn('4')">4</button>
+              <button class="ck" onclick="calcBtn('5')">5</button>
+              <button class="ck" onclick="calcBtn('6')">6</button>
+              <button class="ck op" onclick="calcBtn('-')">−</button>
+              <button class="ck" onclick="calcBtn('1')">1</button>
+              <button class="ck" onclick="calcBtn('2')">2</button>
+              <button class="ck" onclick="calcBtn('3')">3</button>
+              <button class="ck op" onclick="calcBtn('+')">+</button>
+              <button class="ck" onclick="calcBtn('0')">0</button>
+              <button class="ck" onclick="calcBtn('.')">.</button>
+              <button class="ck eq" onclick="calcBtn('=')">=</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="qt-main" id="qt-main">
         <div class="empty" style="margin:auto;padding:4rem">เลือกโปรเจคหรือกด "+ ใบใหม่" ครับ</div>
@@ -299,7 +342,8 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
           <button class="cat-fb" onclick="filterCat('Post-Production',this)">Post</button>
         </div>
         <input class="cat-search" id="cat-q" placeholder="ค้นหา..." oninput="renderCat()"/>
-        <button class="btn primary" style="margin-left:auto" onclick="openAddCat()">+ เพิ่มรายการ</button>
+        <button class="btn" style="margin-left:auto" onclick="importDefaultCatalogue()" title="นำเข้า 119 รายการ Default จาก COT Template">📥 Import Default</button>
+        <button class="btn primary" onclick="openAddCat()">+ เพิ่มรายการ</button>
       </div>
       <div id="cat-wrap"></div>
     </div>
@@ -387,10 +431,10 @@ async function loadAll(){
     const [pr,qt,it,cat,ps,psi]=await Promise.all([
       safeGet('qt_projects?select=*&order=created_at.asc'),
       safeGet('qt_quotations?select=*&order=created_at.asc'),
-      safeGet('qt_items?select=*&order=sort_order.asc,created_at.asc'),
+      safeGet('qt_items?select=*&order=created_at.asc'),
       safeGet('qt_catalogue?select=*&order=name.asc'),
       safeGet('qt_presets?select=*&order=name.asc'),
-      safeGet('qt_preset_items?select=*&order=sort_order.asc')
+      safeGet('qt_preset_items?select=*&order=created_at.asc')
     ]);
     projects=pr;quotations=qt;qItems=it;catalogue=cat;presets=ps;presetItems=psi;
     setSyncDot(true);
@@ -823,7 +867,6 @@ async function saveAddItem(section,isExtra){
   const mk=+document.getElementById('ai-mk').value||0;
   let price=+document.getElementById('ai-price').value||0;
   if(mk>0&&cost>0&&price===0)price=Math.round(cost*(1+mk/100));
-  const maxOrder=qItems.filter(i=>i.quotation_id===activeQTId).length;
   const item=await dbPost('qt_items',{
     quotation_id:activeQTId,section:isExtra?'Extra':section,
     item_role:document.getElementById('ai-role').value,
@@ -833,7 +876,7 @@ async function saveAddItem(section,isExtra){
     qty:+document.getElementById('ai-qty').value||1,
     cost,price,markup_pct:mk,
 
-    is_extra:isExtra,is_cot:false,io_type:'person',sort_order:maxOrder
+    is_extra:isExtra,is_cot:false,io_type:'person'
   });
   if(item)qItems.push(item);closeModal();renderQT();
 }
@@ -862,9 +905,8 @@ async function doSaveAsPreset(){
   if(!ps){alert('บันทึก Preset ไม่สำเร็จ ลองใหม่อีกครั้ง');return;}
   const its=qItems.filter(i=>i.quotation_id===activeQTId);
   let ok=0,fail=0;
-  let idx=0;
   for(const i of its){
-    /* map 'Extra' section → keep original 3-section value, use is_extra flag */
+    /* map 'Extra' section → nearest standard section */
     const sec=['Pre-Production','Production','Post-Production'].includes(i.section)?i.section:'Pre-Production';
     const pi=await dbPost('qt_preset_items',{
       preset_id:ps.id,
@@ -877,9 +919,7 @@ async function doSaveAsPreset(){
       qty:i.qty||1,
       cost:i.cost||0,
       price:i.price||0,
-      markup_pct:i.markup_pct||0,
-      is_extra:!!i.is_extra,
-      sort_order:idx++
+      markup_pct:i.markup_pct||0
     });
     if(pi){presetItems.push(pi);ok++;}else fail++;
   }
@@ -1169,7 +1209,7 @@ async function doAddPI(sec){
     name,unit:document.getElementById('pi-unit').value,
     qty:+document.getElementById('pi-qty').value||1,
     cost:+document.getElementById('pi-cost').value||0,price:+document.getElementById('pi-price').value||0,
-    markup_pct:0,is_extra:false,sort_order:presetItems.filter(x=>x.preset_id===activePresetId).length});
+    markup_pct:0});
   if(i)presetItems.push(i);closeModal();renderPreset();
 }
 
@@ -1177,10 +1217,23 @@ async function applyPreset(pid){
   if(!activeQTId){alert('กรุณาเลือกใบ QT ก่อนครับ');showPage('qt',null);return;}
   if(!confirm('เพิ่มรายการจาก Preset นี้ใส่ใบปัจจุบัน?'))return;
   const pis=presetItems.filter(i=>i.preset_id===pid);
-  let maxOrder=qItems.filter(i=>i.quotation_id===activeQTId).length;
   for(const i of pis){
-    const {id:_,created_at:__,preset_id:___,...d}=i;
-    const ni=await dbPost('qt_items',{...d,quotation_id:activeQTId,is_cot:false,sort_order:maxOrder++});
+    const ni=await dbPost('qt_items',{
+      quotation_id:activeQTId,
+      section:['Pre-Production','Production','Post-Production'].includes(i.section)?i.section:'Pre-Production',
+      item_role:i.item_role||'',
+      item_person:i.item_person||'',
+      name:i.name||'',
+      detail:i.detail||'',
+      unit:i.unit||'',
+      qty:i.qty||1,
+      cost:i.cost||0,
+      price:i.price||0,
+      markup_pct:i.markup_pct||0,
+      is_extra:false,
+      is_cot:false,
+      io_type:'person'
+    });
     if(ni)qItems.push(ni);
   }
   showPage('qt',document.querySelector('.tnavbtn'));renderQT();
@@ -1345,6 +1398,176 @@ async function doEditItem(id){
 function exportPDF(){const prev=currentView;setView('client');setTimeout(()=>{window.print();setTimeout(()=>setView(prev),500);},400);}
 function closeModal(){document.getElementById('moverlay').classList.remove('open');}
 function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('moverlay').classList.add('open');}
+
+/* CALCULATOR */
+let _cVal='0',_cOp=null,_cPrev=null,_cNew=true;
+function toggleCalc(){
+  const b=document.getElementById('calc-body'),c=document.getElementById('calc-chev');
+  const open=!b.classList.contains('open');
+  b.classList.toggle('open',open);
+  if(c)c.textContent=open?'▼':'▶';
+}
+function calcBtn(v){
+  const disp=document.getElementById('calc-disp');
+  if(v==='C'){_cVal='0';_cOp=null;_cPrev=null;_cNew=true;}
+  else if(v==='±'){_cVal=String(-parseFloat(_cVal)||0);}
+  else if(v==='%'){_cVal=String(parseFloat(_cVal)/100);}
+  else if(['+','-','×','÷'].includes(v)){_cPrev=parseFloat(_cVal);_cOp=v;_cNew=true;}
+  else if(v==='='){
+    if(_cOp&&_cPrev!==null){
+      const n=parseFloat(_cVal);
+      let r=_cOp==='+'?_cPrev+n:_cOp==='-'?_cPrev-n:_cOp==='×'?_cPrev*n:n!==0?_cPrev/n:0;
+      _cVal=String(Math.round(r*1e8)/1e8);
+      _cOp=null;_cPrev=null;_cNew=true;
+    }
+  }else if(v==='.'){
+    if(_cNew){_cVal='0.';_cNew=false;}
+    else if(!_cVal.includes('.'))_cVal+='.';
+  }else{
+    if(_cNew||_cVal==='0'){_cVal=v;_cNew=false;}
+    else{if(_cVal.length<12)_cVal+=v;}
+  }
+  const num=parseFloat(_cVal);
+  disp.textContent=isNaN(num)?_cVal:_cVal.endsWith('.')?_cVal:_cVal.includes('.')?_cVal:num.toLocaleString('th-TH');
+}
+
+/* IMPORT DEFAULT CATALOGUE */
+async function importDefaultCatalogue(){
+  if(!confirm('นำเข้า 119 รายการ Default Catalogue จาก COT Template?\n(จะเพิ่มเข้าไปไม่ลบรายการเดิม)'))return;
+  const D=[
+    {name:'Director (with storyboard)',item_role:'Director (with storyboard)',item_person:'',part:'Pre-Production',unit:'day',cost_min:55000,cost_max:70000,notes:'รุ่นใหม่ 55k / รุ่นใหญ่ 70k'},
+    {name:'Director (no storyboard)',item_role:'Director (no storyboard)',item_person:'',part:'Pre-Production',unit:'day',cost_min:70000,cost_max:90000,notes:'รุ่นใหม่ 70k / รุ่นใหญ่ 90k'},
+    {name:'Producer / Coordinator',item_role:'Producer / Coordinator',item_person:'',part:'Pre-Production',unit:'day',cost_min:10000,cost_max:50000,notes:'สูงสุด 12 ชั่วโมง'},
+    {name:'Assistant Director (AD)',item_role:'Assistant Director (AD)',item_person:'',part:'Pre-Production',unit:'day',cost_min:20000,cost_max:30000,notes:'เฉพาะโฆษณา/MV'},
+    {name:'Scriptwriter',item_role:'Scriptwriter',item_person:'',part:'Pre-Production',unit:'day',cost_min:8000,cost_max:15000,notes:'พัฒนาบท/โครงคลิป'},
+    {name:'Storyboard Artist',item_role:'Storyboard Artist',item_person:'',part:'Pre-Production',unit:'page',cost_min:1500,cost_max:2500,notes:'แผนช็อต/บอร์ดภาพ'},
+    {name:'Art Director (Pre)',item_role:'Art Director (Pre)',item_person:'',part:'Pre-Production',unit:'day',cost_min:8000,cost_max:15000,notes:'ออกแบบงานศิลป์'},
+    {name:'Production Designer',item_role:'Production Designer',item_person:'',part:'Pre-Production',unit:'day',cost_min:9000,cost_max:18000,notes:'ออกแบบฉาก/พร็อพ'},
+    {name:'Casting Director',item_role:'Casting Director',item_person:'',part:'Pre-Production',unit:'day',cost_min:7000,cost_max:12000,notes:'คัดเลือกนักแสดง'},
+    {name:'Casting Fee (per role)',item_role:'Casting Fee (per role)',item_person:'',part:'Pre-Production',unit:'role',cost_min:1500,cost_max:15000,notes:'ไม่รวมค่าตัวนักแสดง (ราคาเดียว)'},
+    {name:'Talent / Actor Fee',item_role:'Talent / Actor Fee',item_person:'',part:'Pre-Production',unit:'role/day',cost_min:10000,cost_max:15000,notes:'กำหนดตามเรตนักแสดง'},
+    {name:'Talent Content',item_role:'Talent Content',item_person:'',part:'Pre-Production',unit:'role/day',cost_min:3000,cost_max:5000,notes:'กำหนดตามเรตนักแสดง'},
+    {name:'Location Scout',item_role:'Location Scout',item_person:'',part:'Pre-Production',unit:'day',cost_min:5000,cost_max:8000,notes:'ไม่รวมค่าโลเคชัน'},
+    {name:'Location Fee',item_role:'Location Fee',item_person:'',part:'Pre-Production',unit:'day',cost_min:0,cost_max:0,notes:'ค่าเช่าสถานที่/น้ำไฟ/โอที'},
+    {name:'Permit / License',item_role:'Permit / License',item_person:'',part:'Pre-Production',unit:'lot',cost_min:0,cost_max:0,notes:'ใบอนุญาตถ่ายทำ/โดรน/เทศบาล'},
+    {name:'Insurance (Production)',item_role:'Insurance (Production)',item_person:'',part:'Pre-Production',unit:'project',cost_min:0,cost_max:0,notes:'ประกันการถ่ายทำ/อุปกรณ์/บุคคล'},
+    {name:'PPM / Pre-pro Meeting',item_role:'PPM / Pre-pro Meeting',item_person:'',part:'Pre-Production',unit:'session',cost_min:0,cost_max:0,notes:'ประชุมก่อนถ่าย'},
+    {name:'Tech Recce',item_role:'Tech Recce',item_person:'',part:'Pre-Production',unit:'day',cost_min:0,cost_max:0,notes:'ลงโลฯพร้อมทีมเทคนิค'},
+    {name:'Table Read / Rehearsal',item_role:'Table Read / Rehearsal',item_person:'',part:'Pre-Production',unit:'session',cost_min:0,cost_max:0,notes:'อ่านบท/ซ้อมนักแสดง'},
+    {name:'Costume Stylist (Pre)',item_role:'Costume Stylist (Pre)',item_person:'',part:'Pre-Production',unit:'day',cost_min:5000,cost_max:9000,notes:'จัดหาชุด/ฟิตติ้ง'},
+    {name:'Wardrobe Rental',item_role:'Wardrobe Rental',item_person:'',part:'Pre-Production',unit:'day',cost_min:0,cost_max:0,notes:'เช่าชุด/อุปกรณ์'},
+    {name:'Props Master (Pre)',item_role:'Props Master (Pre)',item_person:'',part:'Pre-Production',unit:'day',cost_min:5000,cost_max:9000,notes:'จัดเตรียมพร็อพ'},
+    {name:'Set Construction (A)',item_role:'Set Construction (A)',item_person:'',part:'Pre-Production',unit:'set',cost_min:0,cost_max:0,notes:'ขนาดเล็ก'},
+    {name:'Set Construction (B)',item_role:'Set Construction (B)',item_person:'',part:'Pre-Production',unit:'set',cost_min:0,cost_max:0,notes:'ขนาดกลาง'},
+    {name:'Set Construction (C)',item_role:'Set Construction (C)',item_person:'',part:'Pre-Production',unit:'set',cost_min:0,cost_max:0,notes:'ขนาดใหญ่/ซับซ้อน'},
+    {name:'Researcher',item_role:'Researcher',item_person:'',part:'Pre-Production',unit:'day',cost_min:4000,cost_max:7000,notes:'ค้นคว้าข้อมูล/รีเสิร์ช'},
+    {name:'Translator (Pre)',item_role:'Translator (Pre)',item_person:'',part:'Pre-Production',unit:'day',cost_min:4000,cost_max:7000,notes:'แปลบท/เอกสาร'},
+    {name:'Music Pre-clearance',item_role:'Music Pre-clearance',item_person:'',part:'Pre-Production',unit:'track',cost_min:0,cost_max:0,notes:'เช็คสิทธิ/ลิขสิทธิ์เพลง'},
+    {name:'Legal / Contract Draft',item_role:'Legal / Contract Draft',item_person:'',part:'Pre-Production',unit:'lot',cost_min:0,cost_max:0,notes:'เอกสารสัญญา/ความยินยอม'},
+    {name:'Production Planning',item_role:'Production Planning',item_person:'',part:'Pre-Production',unit:'lot',cost_min:4000,cost_max:4000,notes:'ค่าปริ้นเอกสาร'},
+    {name:'Air Travel (Round Trip)',item_role:'Air Travel (Round Trip)',item_person:'',part:'Pre-Production',unit:'lot',cost_min:3000,cost_max:4000,notes:'ตั๋วเครื่องบิน'},
+    {name:'Director (Shoot)',item_role:'Director (Shoot)',item_person:'',part:'Production',unit:'day',cost_min:15000,cost_max:25000,notes:'กำกับกองถ่าย'},
+    {name:'DOP / Cinematographer',item_role:'DOP / Cinematographer',item_person:'',part:'Production',unit:'day',cost_min:15000,cost_max:25000,notes:'มี Director (ทีม Cot มาตรฐาน)'},
+    {name:'Camera Operator B (event/2nd)',item_role:'Camera Operator B (event/2nd)',item_person:'',part:'Production',unit:'day',cost_min:10000,cost_max:12000,notes:'กล้องเสริม / อีเวนต์'},
+    {name:'1st AC / Focus Puller',item_role:'1st AC / Focus Puller',item_person:'',part:'Production',unit:'day',cost_min:5000,cost_max:8000,notes:'โฟกัส/เลนส์/กล้อง'},
+    {name:'2nd AC / Clapper / DIT Assist',item_role:'2nd AC / Clapper / DIT Assist',item_person:'',part:'Production',unit:'day',cost_min:3500,cost_max:5000,notes:'สเลท/การ์ด/แบต'},
+    {name:'Gaffer (Head Electric)',item_role:'Gaffer (Head Electric)',item_person:'',part:'Production',unit:'day',cost_min:7000,cost_max:10000,notes:'หัวหน้าทีมไฟ'},
+    {name:'Best Boy Electric',item_role:'Best Boy Electric',item_person:'',part:'Production',unit:'day',cost_min:3500,cost_max:5000,notes:'ผู้ช่วยทีมไฟ'},
+    {name:'Key Grip',item_role:'Key Grip',item_person:'',part:'Production',unit:'day',cost_min:6000,cost_max:9000,notes:'หัวหน้าทีมกริป'},
+    {name:'Grip',item_role:'Grip',item_person:'',part:'Production',unit:'day',cost_min:3000,cost_max:4500,notes:'ตั้งยึด/ราง/โดลลี่'},
+    {name:'Sound Recordist',item_role:'Sound Recordist',item_person:'',part:'Production',unit:'day',cost_min:5000,cost_max:6000,notes:'บันทึกเสียงกองถ่าย'},
+    {name:'Boom Operator',item_role:'Boom Operator',item_person:'',part:'Production',unit:'day',cost_min:3000,cost_max:4500,notes:'ถือไมค์บูม'},
+    {name:'Script Supervisor',item_role:'Script Supervisor',item_person:'',part:'Production',unit:'day',cost_min:6000,cost_max:9000,notes:'ต่อเนื่อง/สคริปต์'},
+    {name:'Production Manager',item_role:'Production Manager',item_person:'',part:'Production',unit:'day',cost_min:7000,cost_max:10000,notes:'ควบคุมงานหน้างาน'},
+    {name:'Production Coordinator',item_role:'Production Coordinator',item_person:'',part:'Production',unit:'day',cost_min:6000,cost_max:8000,notes:'ประสานงานในกอง'},
+    {name:'PA / Runner',item_role:'PA / Runner',item_person:'',part:'Production',unit:'day',cost_min:1200,cost_max:1800,notes:'ผู้ช่วยกอง/วิ่งงาน'},
+    {name:'Stylist (On set)',item_role:'Stylist (On set)',item_person:'',part:'Production',unit:'day',cost_min:5000,cost_max:9000,notes:'ดูแลชุดหน้างาน'},
+    {name:'Makeup & Hair',item_role:'Makeup & Hair',item_person:'',part:'Production',unit:'day',cost_min:10000,cost_max:15000,notes:'ต่อวัน'},
+    {name:'BTS Videographer',item_role:'BTS Videographer',item_person:'',part:'Production',unit:'day',cost_min:6000,cost_max:10000,notes:'เบื้องหลังวิดีโอ'},
+    {name:'BTS Photographer',item_role:'BTS Photographer',item_person:'',part:'Production',unit:'day',cost_min:5000,cost_max:9000,notes:'เบื้องหลังภาพนิ่ง'},
+    {name:'Stills Photographer',item_role:'Stills Photographer',item_person:'',part:'Production',unit:'day',cost_min:7000,cost_max:12000,notes:'ภาพนิ่งทางการ'},
+    {name:'Drone Pilot + Drone',item_role:'Drone Pilot + Drone',item_person:'',part:'Production',unit:'day',cost_min:7000,cost_max:12000,notes:'นักบินโดรน+อุปกรณ์'},
+    {name:'Behind-the-Scenes Producer',item_role:'Behind-the-Scenes Producer',item_person:'',part:'Production',unit:'day',cost_min:6000,cost_max:10000,notes:'วางแผน/กำกับ BTS'},
+    {name:'Van (9-12 seats)',item_role:'Van (9-12 seats)',item_person:'',part:'Production',unit:'day',cost_min:1500,cost_max:1500,notes:'รวมคนขับ/น้ำมันตามจริง'},
+    {name:'Pick-up Truck',item_role:'Pick-up Truck',item_person:'',part:'Production',unit:'day',cost_min:0,cost_max:0,notes:'ขนของ/อุปกรณ์'},
+    {name:'1-Ton Truck',item_role:'1-Ton Truck',item_person:'',part:'Production',unit:'day',cost_min:0,cost_max:0,notes:'ขนเซ็ต/โครงสร้าง'},
+    {name:'Fuel (per person round-trip)',item_role:'Fuel (per person round-trip)',item_person:'',part:'Production',unit:'trip',cost_min:300,cost_max:300,notes:'ค่าเชื้อเพลิงทีม/คน'},
+    {name:'Toll / Parking',item_role:'Toll / Parking',item_person:'',part:'Production',unit:'lot',cost_min:0,cost_max:0,notes:'ค่าทางด่วน/ที่จอด'},
+    {name:'Per Diem (Crew)',item_role:'Per Diem (Crew)',item_person:'',part:'Production',unit:'day',cost_min:0,cost_max:0,notes:'ค่าอาหาร/น้ำดื่ม/เบี้ยเลี้ยง'},
+    {name:'Accommodation (Crew)',item_role:'Accommodation (Crew)',item_person:'',part:'Production',unit:'night',cost_min:0,cost_max:0,notes:'ค้างคืนกองถ่าย'},
+    {name:'Craft Service A',item_role:'Craft Service A',item_person:'',part:'Production',unit:'day',cost_min:1500,cost_max:1500,notes:'ของว่างทีมเล็ก'},
+    {name:'Craft Service B',item_role:'Craft Service B',item_person:'',part:'Production',unit:'day',cost_min:3000,cost_max:3000,notes:'ของว่างทีมกลาง'},
+    {name:'Catering',item_role:'Catering',item_person:'',part:'Production',unit:'meal',cost_min:15000,cost_max:20000,notes:'อาหารกล่อง/บุฟเฟต์/ฮาลาล/มังฯ'},
+    {name:'Camera Package A (Mini)',item_role:'Camera Package A (Mini)',item_person:'',part:'Production',unit:'day',cost_min:10000,cost_max:10000,notes:'Sony FX3 + FE PZ 16-35mm + Tamron 28-75mm; Tripod; 4x NP-FZ100; 128-256GB cards; Basic ND; No gimbal.'},
+    {name:'Camera Package B (Standard)',item_role:'Camera Package B (Standard)',item_person:'',part:'Production',unit:'day',cost_min:16000,cost_max:20000,notes:'Sony FX3/A7SIII + 16-35mm + 28-75mm + Prime 35mm; RS3 gimbal; Wireless video; ND kit; Tripod.'},
+    {name:'Camera Package C (Pro / 2-Cam)',item_role:'Camera Package C (Pro / 2-Cam)',item_person:'',part:'Production',unit:'day',cost_min:22000,cost_max:28000,notes:'2 bodies (FX3+FX30) + Cine primes set; RS3 Pro; Wireless video kit; Mattebox + Follow Focus; V-mount power.'},
+    {name:'Lighting Package A (Mini)',item_role:'Lighting Package A (Mini)',item_person:'',part:'Production',unit:'day',cost_min:4000,cost_max:8000,notes:'1x COB 60-120W (Amaran 60x/100d) + Softbox + Light stand + Reflector; gaffer tapes; 2x sandbags.'},
+    {name:'Lighting Package B (Standard)',item_role:'Lighting Package B (Standard)',item_person:'',part:'Production',unit:'day',cost_min:12000,cost_max:20000,notes:'2-3 lights (150-300W) + Softbox/Strip + Flags/Diffusion + stands + C-stands x2 + Sandbags.'},
+    {name:'Lighting Package C (Pro)',item_role:'Lighting Package C (Pro)',item_person:'',part:'Production',unit:'day',cost_min:30000,cost_max:50000,notes:'3-5 lights (600d/300x mix) + 2-4 RGB tubes + Large modifiers + C-stands 4-6 + Scrim kit.'},
+    {name:'Audio Package A (Mini)',item_role:'Audio Package A (Mini)',item_person:'',part:'Production',unit:'day',cost_min:3000,cost_max:3000,notes:'1x wireless lav (RODE/Deity) + On-cam shotgun + Small recorder (Zoom H1n) + Boom pole.'},
+    {name:'Audio Package B (Standard)',item_role:'Audio Package B (Standard)',item_person:'',part:'Production',unit:'day',cost_min:6000,cost_max:6000,notes:'2x wireless lav (RODE Wireless Pro) + Shotgun (NTG3) + Recorder/Mixer (Zoom F4) + timecode.'},
+    {name:'Audio Package C (Pro)',item_role:'Audio Package C (Pro)',item_person:'',part:'Production',unit:'day',cost_min:12000,cost_max:12000,notes:'4+ channels (Zoom F6/F8) + 3x lav + Shotgun (MKH416) + Full timecode + Plant mic.'},
+    {name:'Grip Package A (Basic)',item_role:'Grip Package A (Basic)',item_person:'',part:'Production',unit:'day',cost_min:2000,cost_max:2000,notes:'Tripod; Light stands x2; Sandbags x4; Clamps; Magic arms; Tape kit.'},
+    {name:'Grip Package B (Standard)',item_role:'Grip Package B (Standard)',item_person:'',part:'Production',unit:'day',cost_min:5000,cost_max:5000,notes:'C-stands x2-4; Slider 60-80cm; Apple box set; Clamps; Backdrop stand.'},
+    {name:'Grip Package C (Pro)',item_role:'Grip Package C (Pro)',item_person:'',part:'Production',unit:'day',cost_min:12000,cost_max:12000,notes:'Dolly + track + Mini jib/boom; Heavy C-stands; Speedrail; Apple boxes; Full sandbags.'},
+    {name:'Monitoring A (Director Monitor)',item_role:'Monitoring A (Director Monitor)',item_person:'',part:'Production',unit:'day',cost_min:1500,cost_max:1500,notes:'5-7" monitor for Director + mount.'},
+    {name:'Monitoring B (Wireless Client)',item_role:'Monitoring B (Wireless Client)',item_person:'',part:'Production',unit:'day',cost_min:4000,cost_max:4000,notes:'13" monitor + wireless video (1TX/1RX).'},
+    {name:'Monitoring C (Village)',item_role:'Monitoring C (Village)',item_person:'',part:'Production',unit:'day',cost_min:8000,cost_max:8000,notes:'17-24" monitor + wireless (1TX/2RX) + small client area.'},
+    {name:'V-Mount Battery Set A',item_role:'V-Mount Battery Set A',item_person:'',part:'Production',unit:'day',cost_min:1000,cost_max:1000,notes:'2x V-mount + dual charger + D-tap cables.'},
+    {name:'V-Mount Battery Set B',item_role:'V-Mount Battery Set B',item_person:'',part:'Production',unit:'day',cost_min:2000,cost_max:2000,notes:'4x V-mount + charger.'},
+    {name:'V-Mount Battery Set C',item_role:'V-Mount Battery Set C',item_person:'',part:'Production',unit:'day',cost_min:3500,cost_max:3500,notes:'6-8x V-mount + charger + distro.'},
+    {name:'Data Backup A',item_role:'Data Backup A',item_person:'',part:'Production',unit:'project',cost_min:0,cost_max:0,notes:'1TB checksum per day + folder structure.'},
+    {name:'Data Backup B',item_role:'Data Backup B',item_person:'',part:'Production',unit:'project',cost_min:0,cost_max:0,notes:'2TB dual clone + checksum + daily report.'},
+    {name:'Data Backup C',item_role:'Data Backup C',item_person:'',part:'Production',unit:'project',cost_min:0,cost_max:0,notes:'4TB+ workflow + delivery report.'},
+    {name:'Professional Shoot & Edit',item_role:'Professional Shoot & Edit',item_person:'',part:'Production',unit:'day',cost_min:23000,cost_max:23000,notes:'Full Package 1-3 people'},
+    {name:'Professional (Visual & Vlog Shoot)',item_role:'Professional (Visual & Vlog Shoot)',item_person:'',part:'Production',unit:'day',cost_min:15000,cost_max:15000,notes:'A la carte service for BTS & Documentary'},
+    {name:'Visual Shoot',item_role:'Visual Shoot',item_person:'',part:'Production',unit:'day',cost_min:10000,cost_max:10000,notes:'A la carte service for BTS & Documentary'},
+    {name:'Vlog Shoot',item_role:'Vlog Shoot',item_person:'',part:'Production',unit:'day',cost_min:8000,cost_max:8000,notes:'A la carte service for BTS & Documentary'},
+    {name:'Add-on Lighting',item_role:'Add-on Lighting',item_person:'',part:'Production',unit:'day',cost_min:3000,cost_max:3000,notes:'A la carte service for BTS & Documentary'},
+    {name:'Social-First Package (TikTok/Reels/Shorts)',item_role:'Social-First Package (TikTok/Reels/Shorts)',item_person:'',part:'Production',unit:'day',cost_min:25000,cost_max:35000,notes:'Content for Promote 1day shoot (4-6hrs)'},
+    {name:'Content for Promote Full-Scale Package',item_role:'Content for Promote Full-Scale Package',item_person:'',part:'Production',unit:'day',cost_min:60000,cost_max:90000,notes:'Full day Shoot'},
+    {name:'Photographer KV set + Retouch + Studio',item_role:'Photographer KV set + Retouch + Studio',item_person:'',part:'Production',unit:'day',cost_min:60000,cost_max:60000,notes:''},
+    {name:'Advanced Visualizer Package',item_role:'Advanced Visualizer Package',item_person:'',part:'Production',unit:'day',cost_min:35000,cost_max:60000,notes:'Content for Promote'},
+    {name:'Editor (event & Content) per 1-min',item_role:'Editor (event & Content) per 1-min',item_person:'',part:'Post-Production',unit:'min',cost_min:4000,cost_max:5000,notes:'รุ่นใหม่ 4k / รุ่นใหญ่ 5k'},
+    {name:'Editor - Overall',item_role:'Editor - Overall',item_person:'',part:'Post-Production',unit:'version',cost_min:15000,cost_max:20000,notes:'โปรโม/บริษัท/คอมเมอเชียล'},
+    {name:'Editor - Advertisement',item_role:'Editor - Advertisement',item_person:'',part:'Post-Production',unit:'version',cost_min:25000,cost_max:50000,notes:'โปรโม/บริษัท/คอมเมอเชียล'},
+    {name:'Assistant Editor',item_role:'Assistant Editor',item_person:'',part:'Post-Production',unit:'day',cost_min:3000,cost_max:4500,notes:'ซิงค์/คัดช็อต/จัดไทม์ไลน์'},
+    {name:'Motion Graphics A (Basic)',item_role:'Motion Graphics A (Basic)',item_person:'',part:'Post-Production',unit:'project',cost_min:7000,cost_max:12000,notes:'โลโก้/ไตเติล/ล่างจอ'},
+    {name:'Motion Graphics B (Advanced)',item_role:'Motion Graphics B (Advanced)',item_person:'',part:'Post-Production',unit:'project',cost_min:15000,cost_max:25000,notes:'อินโทร/ทรานซิชัน/แอนิเมชัน'},
+    {name:'3D / VFX (per shot)',item_role:'3D / VFX (per shot)',item_person:'',part:'Post-Production',unit:'day',cost_min:15000,cost_max:15000,notes:'CG/คอมโพสิต/รีทัช'},
+    {name:'VFX (per day)',item_role:'VFX (per day)',item_person:'',part:'Post-Production',unit:'day',cost_min:15000,cost_max:15000,notes:'CG/คอมโพสิต/รีทัช'},
+    {name:'Color Grading (Telecine)',item_role:'Color Grading (Telecine)',item_person:'',part:'Post-Production',unit:'project',cost_min:15000,cost_max:25000,notes:'ไกด์ลุค/ไฟนัล'},
+    {name:'Sound Design / SFX',item_role:'Sound Design / SFX',item_person:'',part:'Post-Production',unit:'project',cost_min:6000,cost_max:10000,notes:'เสียงประกอบ'},
+    {name:'Sound Mix (basic)',item_role:'Sound Mix (basic)',item_person:'',part:'Post-Production',unit:'project',cost_min:5000,cost_max:6000,notes:'บาลานซ์/คอมเพรส/ลิมิต'},
+    {name:'VO Recording (Studio)',item_role:'VO Recording (Studio)',item_person:'',part:'Post-Production',unit:'project',cost_min:20000,cost_max:35000,notes:'บูธเสียง/วิศวกรเสียง'},
+    {name:'VO Talent',item_role:'VO Talent',item_person:'',part:'Post-Production',unit:'project',cost_min:6000,cost_max:15000,notes:'เรตตามนักพากย์/ภาษา'},
+    {name:'ADR / Dubbing',item_role:'ADR / Dubbing',item_person:'',part:'Post-Production',unit:'hour',cost_min:1500,cost_max:2500,notes:'อัดทับเสียงนักแสดง'},
+    {name:'Music Licensing',item_role:'Music Licensing',item_person:'',part:'Post-Production',unit:'track',cost_min:0,cost_max:0,notes:'ค่าใช้สิทธิ/ระยะเวลาใช้งาน'},
+    {name:'Subtitle (per minute)',item_role:'Subtitle (per minute)',item_person:'',part:'Post-Production',unit:'min',cost_min:800,cost_max:800,notes:'ราคาเดียว'},
+    {name:'Subtitle Editor',item_role:'Subtitle Editor',item_person:'',part:'Post-Production',unit:'version',cost_min:500,cost_max:800,notes:'คนใส่ซับ/ตรวจเวลา/จัดฟอร์แมต'},
+    {name:'SRT / Caption Delivery',item_role:'SRT / Caption Delivery',item_person:'',part:'Post-Production',unit:'file',cost_min:0,cost_max:0,notes:'ส่งไฟล์ไตเติล'},
+    {name:'Transcoding / Delivery (per master)',item_role:'Transcoding / Delivery (per master)',item_person:'',part:'Post-Production',unit:'file',cost_min:0,cost_max:0,notes:'UHD/4K/1080p, ProRes/H.264'},
+    {name:'Deliverables - Social Cut (9:16 / 1:1 / 16:9)',item_role:'Deliverables - Social Cut (9:16 / 1:1 / 16:9)',item_person:'',part:'Post-Production',unit:'file',cost_min:0,cost_max:0,notes:'ชุดไฟล์สำหรับ TikTok/Reels/YouTube'},
+    {name:'DCP (Cinema)',item_role:'DCP (Cinema)',item_person:'',part:'Post-Production',unit:'file',cost_min:0,cost_max:0,notes:'สำหรับฉายในโรงภาพยนตร์'},
+    {name:'Usage Fee (Media/Region/Term)',item_role:'Usage Fee (Media/Region/Term)',item_person:'',part:'Post-Production',unit:'project',cost_min:0,cost_max:0,notes:'กำหนดตามสื่อ/ประเทศ/ระยะเวลา'},
+    {name:'Contingency (10%)',item_role:'Contingency (10%)',item_person:'',part:'Post-Production',unit:'project',cost_min:0,cost_max:0,notes:'งบเผื่อเหตุฉุกเฉิน'},
+    {name:'Post - Producer',item_role:'Post - Producer',item_person:'',part:'Post-Production',unit:'project',cost_min:15000,cost_max:30000,notes:'Post production producer'},
+    {name:'Editing Fees',item_role:'Editing Fees',item_person:'',part:'Post-Production',unit:'project',cost_min:6000,cost_max:6000,notes:'A la carte services for BTS & Documentary'},
+    {name:'Client Cut (Client Footage)',item_role:'Client Cut (Client Footage)',item_person:'',part:'Post-Production',unit:'project',cost_min:8000,cost_max:8000,notes:'A la carte services for BTS & Documentary'}
+  ];
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/qt_catalogue',{
+      method:'POST',
+      headers:{...H(),'Prefer':'return=representation'},
+      body:JSON.stringify(D)
+    });
+    if(!r.ok){const e=await r.text();alert('นำเข้าไม่สำเร็จ: '+e.substring(0,200));return;}
+    const inserted=await r.json();
+    if(Array.isArray(inserted))inserted.forEach(c=>catalogue.push(c));
+    renderCat();
+    alert('นำเข้าสำเร็จ '+(Array.isArray(inserted)?inserted.length:0)+' รายการ ✓');
+  }catch(e){alert('Error: '+e.message);}
+}
 
 window.onload=function(){
   if(localStorage.getItem('qt_dark')==='1'){isDark=true;document.documentElement.setAttribute('data-theme','dark');document.querySelector('.theme-toggle').textContent='☀️';}
