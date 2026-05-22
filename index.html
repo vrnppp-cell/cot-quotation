@@ -426,6 +426,19 @@ async function connectDB(){
 }
 function setSyncDot(ok){document.getElementById('sdot').className='sdot '+(ok?'ok':'err');}
 
+/* Diagnostic: check table columns (call from console: checkTableCols('qt_preset_items')) */
+async function checkTableCols(table){
+  const r=await fetch(SB_URL+'/rest/v1/'+table+'?limit=0',{headers:{...H(),'Accept':'application/openapi+json'}});
+  if(!r.ok){console.warn('Cannot read openapi for',table);
+    // Fallback: try inserting a minimal test row and read the error
+    const r2=await fetch(SB_URL+'/rest/v1/'+table+'?limit=1',{headers:H()});
+    const d=await r2.json();console.log(table,'sample row:',d[0]);return;}
+  const schema=await r.json();
+  const props=schema?.definitions?.[table]?.properties;
+  if(props)console.log(table,'columns:',Object.keys(props));
+  else console.log(table,'schema:',schema);
+}
+
 async function loadAll(){
   try{
     const [pr,qt,it,cat,ps,psi]=await Promise.all([
@@ -908,10 +921,8 @@ async function doSaveAsPreset(){
   for(const i of its){
     const pi=await dbPost('qt_preset_items',{
       preset_id:ps.id,
-      name:i.name||'',
       item_role:i.item_role||'',
-      item_person:i.item_person||'',
-      detail:i.detail||'',
+      name:i.name||'',
       unit:i.unit||'',
       qty:i.qty||1,
       cost:i.cost||0,
@@ -1214,7 +1225,6 @@ async function doAddPI(){
   const i=await dbPost('qt_preset_items',{
     preset_id:activePresetId,
     item_role:role,
-    item_person:document.getElementById('pi-person').value,
     name:document.getElementById('pi-name').value,
     unit:document.getElementById('pi-unit').value,
     qty:+document.getElementById('pi-qty').value||1,
