@@ -277,6 +277,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
       <button class="tnavbtn" onclick="showPage('preset',this)">Preset</button>
     </div>
     <div class="tright">
+      <button class="theme-toggle" onclick="openCOSettings()" title="ข้อมูลบริษัท" style="font-size:15px">⚙</button>
       <button class="theme-toggle" onclick="toggleTheme()" title="สลับ Dark/Light">🌙</button>
       <span class="sdot" id="sdot"></span>
       <button class="topbtn gold" onclick="createNewQT()">+ ใบใหม่</button>
@@ -370,6 +371,75 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 <script>
 let SB_URL='',SB_KEY='';
 let projects=[],quotations=[],qItems=[],catalogue=[],presets=[],presetItems=[];
+
+/* ── บริษัท ─────────────────────────────────────── */
+let CO={
+  name:'บริษัท ไชลด์ออนทรี จำกัด (สำนักงานใหญ่)',
+  name_en:'Child on Tree Co., Ltd.',
+  addr:'เลขที่ ..... ซอย ..... ถนน ..... แขวง/เขต ..... กรุงเทพฯ .....',
+  tel:'08x-xxx-xxxx',
+  email:'cot@childontree.com',
+  tax:'xxx-xxx-xxxxx-xx-x',
+  logo_url:''
+};
+function loadCO(){try{const s=localStorage.getItem('qt_co');if(s){const o=JSON.parse(s);Object.assign(CO,o);}}catch(e){}}
+function openCOSettings(){
+  const prev=CO.logo_url?`<div style="margin-bottom:6px"><img src="${CO.logo_url}" style="max-height:56px;max-width:180px;object-fit:contain;border:1px solid var(--border);border-radius:4px;padding:4px;background:#fff" id="co-logo-prev" onerror="this.style.display='none'"/></div>`:'<div id="co-logo-prev" style="display:none"></div>';
+  openModal(`<h2>⚙ ข้อมูลบริษัท</h2>
+    <div class="mf"><label>ชื่อบริษัท (ไทย)</label><input id="co-name" value="${esc(CO.name)}"/></div>
+    <div class="mf"><label>ชื่อบริษัท (English)</label><input id="co-name_en" value="${esc(CO.name_en)}"/></div>
+    <div class="mf"><label>ที่อยู่</label><input id="co-addr" value="${esc(CO.addr)}"/></div>
+    <div class="mf" style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div><label>เบอร์โทร</label><input id="co-tel" value="${esc(CO.tel)}"/></div>
+      <div><label>อีเมล</label><input id="co-email" value="${esc(CO.email)}"/></div>
+    </div>
+    <div class="mf"><label>เลขผู้เสียภาษี</label><input id="co-tax" value="${esc(CO.tax)}"/></div>
+    <div class="mf">
+      <label>โลโก้</label>
+      ${prev}
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="cursor:pointer;padding:5px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;background:var(--card);color:var(--text);white-space:nowrap" title="อัปโหลดจากเครื่อง">📁 อัปโหลด<input type="file" accept="image/*" style="display:none" onchange="coLogoFile(this)"/></label>
+        <span style="font-size:11px;color:var(--hint)">หรือ</span>
+        <input id="co-logo-url" placeholder="วาง URL โลโก้..." value="${esc(CO.logo_url.startsWith('data:') ? '' : CO.logo_url)}" style="flex:1" oninput="coLogoUrlPreview(this.value)"/>
+      </div>
+      <div style="font-size:11px;color:var(--hint);margin-top:4px">แนะนำ PNG พื้นหลังโปร่งใส สูง 100–200px</div>
+    </div>
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="saveCOSettings()">บันทึก</button></div>`);
+}
+function coLogoFile(input){
+  const f=input.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const url=e.target.result;
+    document.getElementById('co-logo-url').value='';
+    document.getElementById('co-logo-url').dataset.b64=url;
+    const p=document.getElementById('co-logo-prev');
+    p.src=url;p.style.display='';
+  };r.readAsDataURL(f);
+}
+function coLogoUrlPreview(url){
+  const p=document.getElementById('co-logo-prev');
+  if(!p)return;
+  if(url){p.src=url;p.style.display='';}
+  else p.style.display='none';
+  document.getElementById('co-logo-url').dataset.b64='';
+}
+function saveCOSettings(){
+  const logoInput=document.getElementById('co-logo-url');
+  const logoVal=logoInput.dataset.b64||logoInput.value.trim()||CO.logo_url;
+  CO={
+    name:document.getElementById('co-name').value.trim()||CO.name,
+    name_en:document.getElementById('co-name_en').value.trim()||CO.name_en,
+    addr:document.getElementById('co-addr').value.trim()||CO.addr,
+    tel:document.getElementById('co-tel').value.trim()||CO.tel,
+    email:document.getElementById('co-email').value.trim()||CO.email,
+    tax:document.getElementById('co-tax').value.trim()||CO.tax,
+    logo_url:logoVal
+  };
+  localStorage.setItem('qt_co',JSON.stringify(CO));
+  closeModal();
+  alert('บันทึกข้อมูลบริษัทเรียบร้อยแล้วครับ ✓');
+}
 let activeProjId=null,activeQTId=null,activePresetId=null;
 let currentView='internal',catFilter='all',isDark=false;
 
@@ -382,7 +452,7 @@ const genNo=()=>'QT'+new Date().getFullYear()+(new Date().getMonth()+1).toString
 function toggleTheme(){
   isDark=!isDark;
   document.documentElement.setAttribute('data-theme',isDark?'dark':'');
-  document.querySelector('.theme-toggle').textContent=isDark?'☀️':'🌙';
+  document.querySelectorAll('.theme-toggle')[1].textContent=isDark?'☀️':'🌙';
   localStorage.setItem('qt_dark',isDark?'1':'');
 }
 
@@ -1438,7 +1508,208 @@ async function doEditItem(id){
   closeModal();renderQT();
 }
 
-function exportPDF(){const prev=currentView;setView('client');setTimeout(()=>{window.print();setTimeout(()=>setView(prev),500);},400);}
+function exportPDF(){
+  const qt=quotations.find(q=>q.id===activeQTId);
+  if(!qt){alert('กรุณาเลือกใบ QT ก่อนครับ');return;}
+  const proj=projects.find(p=>p.id===qt.project_id);
+  const allItems=qItems.filter(i=>i.quotation_id===activeQTId);
+  const fmtN=n=>(Math.round(n||0)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtD=d=>{if(!d)return '';try{const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}catch{return d;}};
+
+  const SECS=[
+    {key:'Pre-Production',label:'Pre-Production'},
+    {key:'Production',label:'Production (Filming)'},
+    {key:'Post-Production',label:'Post-Production'}
+  ];
+  if(qt.show_extra)SECS.push({key:'Extra',label:'Extra / Add-on'});
+
+  const secData=SECS.map(sec=>{
+    const si=sec.key==='Extra'
+      ?allItems.filter(i=>i.is_extra)
+      :allItems.filter(i=>i.section===sec.key&&!i.is_extra);
+    const total=si.reduce((a,i)=>a+(i.price||0)*(i.qty||1),0);
+    return{...sec,items:si,total};
+  }).filter(s=>s.items.length>0);
+
+  const sub=secData.reduce((a,s)=>a+s.total,0);
+  const mgmt=sub*(qt.mgmt_fee_pct/100);
+  const beforeVat=sub+mgmt;
+  const vat=qt.vat_enabled?beforeVat*.07:0;
+  const wht=qt.wht_enabled?beforeVat*.03:0;
+  const grand=beforeVat+vat-wht;
+
+  const logoHtml=CO.logo_url
+    ?`<img src="${CO.logo_url}" style="height:28pt;object-fit:contain" alt="logo"/>`
+    :`<span style="font-family:'Instrument Serif',serif;font-size:26pt;font-style:italic;letter-spacing:-1px;color:#1A1A1A;line-height:1">Cot<span style="font-size:20pt">.</span></span>`;
+
+  const secRows=secData.map((sec,idx)=>`
+    <tr style="background:${idx%2===0?'#fff':'#F7F7F5'}">
+      <td style="text-align:center;color:#999;font-size:8pt;vertical-align:top;padding:3.5mm 3mm">${idx+1}</td>
+      <td style="vertical-align:top;padding:3.5mm 3mm">
+        <div style="font-weight:600;font-size:8.5pt;margin-bottom:1.5mm;color:#1A1A1A">${sec.label}</div>
+        <ul style="margin:0;padding-left:3.5mm;color:#555;font-size:8pt;line-height:1.75">
+          ${sec.items.map(i=>{
+            const lbl=i.item_role||i.name||'';
+            const person=i.item_person?` (${i.item_person})`:'';
+            const qty=(i.qty||1)>1?` ×${i.qty}`:'';
+            const u=i.unit?` / ${i.unit}`:'';
+            return `<li>${lbl}${person}${qty}${u}</li>`;
+          }).join('')}
+        </ul>
+      </td>
+      <td style="text-align:center;vertical-align:top;padding:3.5mm 3mm">1</td>
+      <td style="text-align:right;vertical-align:top;padding:3.5mm 3mm">${fmtN(sec.total)}</td>
+      <td style="text-align:right;vertical-align:top;padding:3.5mm 3mm;font-weight:600">${fmtN(sec.total)}</td>
+    </tr>`).join('');
+
+  const html=`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Sarabun:wght@100;300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+@page{size:A4 portrait;margin:9mm 9mm 9mm 9mm}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'Sarabun',sans-serif;font-size:9pt;color:#1A1A1A;background:#fff}
+/* HEADER */
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5mm;padding-bottom:4mm;border-bottom:2px solid #354B47}
+.qt-title .en{font-family:'Instrument Serif',serif;font-size:17pt;color:#1A1A1A;line-height:1;text-align:right}
+.qt-title .th{font-size:8pt;color:#888;text-align:right;margin-top:.5mm}
+/* FROM-TO */
+.from-to{display:grid;grid-template-columns:1fr 1fr;gap:5mm;margin-bottom:4mm}
+.co-name{color:#1A5CB8;font-weight:600;font-size:9pt;margin-bottom:1.5mm}
+.co-info{font-size:7.5pt;color:#555;line-height:1.7}
+/* DETAIL BOX */
+.dtl-box{border:1px solid #C8CEC8;border-radius:3px;overflow:hidden}
+.dtl-head{background:#354B47;color:#C9C79C;padding:2.5mm 4mm;font-size:8pt;font-weight:600;text-align:center;letter-spacing:.5px}
+.dtl-body{display:grid;grid-template-columns:auto 1fr;gap:.8mm 3mm;padding:2.5mm 4mm;font-size:8pt}
+.dtl-body .lbl{color:#888;white-space:nowrap}
+.dtl-body .val{font-weight:500}
+/* CLIENT */
+.cli{margin-bottom:4mm;padding-bottom:3mm;border-bottom:1px solid #E8E8E6}
+.cli-lbl{font-size:7.5pt;color:#888;text-transform:uppercase;letter-spacing:.3px;margin-bottom:1mm}
+.cli-name{color:#1A5CB8;font-weight:600;font-size:9pt}
+.cli-sub{font-size:8pt;color:#666;margin-top:.5mm}
+/* ITEMS TABLE */
+table.it{width:100%;border-collapse:collapse;margin-bottom:3mm}
+table.it thead tr{background:#354B47}
+table.it thead th{color:rgba(255,255,255,.92);padding:2.5mm 3mm;font-size:8pt;font-weight:400;letter-spacing:.3px;border:none}
+table.it thead th.r{text-align:right}
+table.it thead th.c{text-align:center}
+table.it tbody tr{border-bottom:1px solid #E8E8E6}
+table.it tbody tr:last-child{border-bottom:2px solid #354B47}
+table.it tbody td{vertical-align:top;font-size:8.5pt}
+table.it tbody td.r{text-align:right}
+table.it tbody td.c{text-align:center}
+/* MGMT FEE */
+.mgmt-line{display:flex;justify-content:flex-end;font-size:8pt;color:#888;margin-bottom:2mm}
+.mgmt-line span{min-width:50mm;text-align:right;font-weight:500;color:#555}
+/* SUMMARY */
+.sum-wrap{display:flex;justify-content:flex-end;margin-bottom:4mm}
+table.sum{width:55%;border-collapse:collapse}
+table.sum td{padding:1.2mm 3mm;font-size:8.5pt}
+table.sum .lbl{color:#666}
+table.sum .val{text-align:right;font-weight:500}
+table.sum tr.div td{border-top:1px solid #C8CEC8;padding-top:2mm}
+table.sum tr.grand td{border-top:2px solid #354B47;padding-top:2mm;font-size:10.5pt;font-weight:700}
+table.sum tr.grand .lbl{color:#1A1A1A}
+table.sum tr.grand .val{color:#354B47}
+/* REMARK */
+.rmk{font-size:7.5pt;color:#666;border-top:1px solid #e0e0e0;padding-top:2.5mm;margin-bottom:4mm;line-height:1.75;white-space:pre-wrap}
+/* SIGNATURE */
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:7mm}
+.sig-name{font-size:8.5pt;font-weight:600;margin-bottom:.5mm}
+.sig-role{font-size:7.5pt;color:#888;margin-bottom:7mm}
+.sig-line{border-bottom:1px solid #AAA;margin-bottom:2mm}
+.sig-lbl{font-size:6.5pt;color:#BBB;font-weight:300;display:flex;justify-content:space-between}
+/* FOOTER */
+.footer{text-align:center;font-size:6.5pt;color:#CCC;margin-top:6mm}
+</style></head><body>
+
+<div class="hdr">
+  ${logoHtml}
+  <div class="qt-title">
+    <div class="en">Quotation</div>
+    <div class="th">ใบเสนอราคา / ใบแจ้งหนี้</div>
+  </div>
+</div>
+
+<div class="from-to">
+  <div>
+    <div class="co-name">${CO.name}</div>
+    <div class="co-info">
+      ${CO.addr}<br/>
+      โทร: ${CO.tel} &nbsp;|&nbsp; อีเมล: ${CO.email}<br/>
+      เลขประจำตัวผู้เสียภาษี: ${CO.tax}
+    </div>
+  </div>
+  <div class="dtl-box">
+    <div class="dtl-head">ใบเสนอราคา / ใบแจ้งหนี้</div>
+    <div class="dtl-body">
+      <span class="lbl">เลขที่</span><span class="val">${qt.qt_number||''}</span>
+      <span class="lbl">วันที่</span><span class="val">${fmtD(qt.qt_date)}</span>
+      ${qt.credit_days?`<span class="lbl">เครดิต</span><span class="val">${qt.credit_days} วัน</span>`:''}
+      ${qt.salesperson?`<span class="lbl">ผู้ดูแล</span><span class="val">${qt.salesperson}</span>`:''}
+      <span class="lbl">สถานะ</span><span class="val">${qt.status==='final'?'Final / Approved':qt.status==='sent'?'Sent':'Draft'}</span>
+    </div>
+  </div>
+</div>
+
+<div class="cli">
+  <div class="cli-lbl">ลูกค้า / Client</div>
+  <div class="cli-name">${qt.client_name||'—'}</div>
+  ${proj?`<div class="cli-sub">โปรเจค: ${proj.name}${qt.version_name?' — '+qt.version_name:''}</div>`:''}
+</div>
+
+<table class="it">
+  <thead>
+    <tr>
+      <th class="c" style="width:7mm">#</th>
+      <th style="text-align:left">รายละเอียด</th>
+      <th class="c" style="width:14mm">จำนวน</th>
+      <th class="r" style="width:32mm">ราคาต่อหน่วย (฿)</th>
+      <th class="r" style="width:32mm">ยอดรวม (฿)</th>
+    </tr>
+  </thead>
+  <tbody>${secRows}</tbody>
+</table>
+
+${qt.mgmt_fee_pct>0?`<div class="mgmt-line">Management Fee ${qt.mgmt_fee_pct}% <span>${fmtN(mgmt)} บาท</span></div>`:''}
+
+<div class="sum-wrap">
+  <table class="sum">
+    <tr><td class="lbl">รวมก่อน VAT</td><td class="val">${fmtN(beforeVat)}</td></tr>
+    ${qt.vat_enabled?`<tr><td class="lbl">VAT 7%</td><td class="val">${fmtN(vat)}</td></tr>`:''}
+    ${qt.wht_enabled?`<tr><td class="lbl">หัก ณ ที่จ่าย 3%</td><td class="val">- ${fmtN(wht)}</td></tr>`:''}
+    <tr class="div"><td colspan="2"></td></tr>
+    <tr class="grand"><td class="lbl">ยอดชำระสุทธิ</td><td class="val">${fmtN(grand)} บาท</td></tr>
+  </table>
+</div>
+
+${qt.remark?`<div class="rmk"><strong>หมายเหตุ: </strong>${qt.remark}</div>`:''}
+
+<div class="sig">
+  <div>
+    <div class="sig-name">${qt.client_name||'ลูกค้า'}</div>
+    <div class="sig-role">ผู้ว่าจ้าง / Authorized Signatory</div>
+    <div class="sig-line"></div>
+    <div class="sig-lbl"><span>ลายมือชื่อ</span><span>วันที่</span></div>
+  </div>
+  <div>
+    <div class="sig-name">${CO.name_en||CO.name}</div>
+    <div class="sig-role">ผู้รับจ้าง / Authorized Signatory</div>
+    <div class="sig-line"></div>
+    <div class="sig-lbl"><span>ลายมือชื่อ</span><span>วันที่</span></div>
+  </div>
+</div>
+
+<div class="footer">© ${new Date().getFullYear()} ${CO.name_en||'COT'} — All Rights Reserved.</div>
+
+</body></html>`;
+
+  const w=window.open('','_blank','width=820,height=1160');
+  if(!w){alert('กรุณาอนุญาต Popup ในเบราว์เซอร์ก่อนครับ');return;}
+  w.document.write(html);w.document.close();
+  setTimeout(()=>{w.focus();w.print();},900);
+}
 function closeModal(){document.getElementById('moverlay').classList.remove('open');}
 function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('moverlay').classList.add('open');}
 
@@ -1613,7 +1884,8 @@ async function importDefaultCatalogue(){
 }
 
 window.onload=function(){
-  if(localStorage.getItem('qt_dark')==='1'){isDark=true;document.documentElement.setAttribute('data-theme','dark');document.querySelector('.theme-toggle').textContent='☀️';}
+  loadCO();
+  if(localStorage.getItem('qt_dark')==='1'){isDark=true;document.documentElement.setAttribute('data-theme','dark');document.querySelectorAll('.theme-toggle')[1].textContent='☀️';}
   const url=localStorage.getItem('qt_url'),key=localStorage.getItem('qt_key');
   if(url&&key){
     document.getElementById('sb-url').value=url;document.getElementById('sb-key').value=key;
