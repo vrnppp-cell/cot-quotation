@@ -138,7 +138,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .it-row:hover{background:var(--bg)}
 .it-row.cot-row{border-left:3px solid var(--purple)}
 /* internal cols: role+name | person | inout | qty | cost | price | mk | total | actions */
-.g-int{grid-template-columns:1.8fr 1fr 42px 72px 78px 44px 68px 112px}
+.g-int{grid-template-columns:1.8fr 1fr 42px 72px 78px 44px 68px 128px}
 .g-cli{grid-template-columns:2fr 1fr 55px 85px 75px}
 .it-cell{display:flex;flex-direction:column;gap:1px}
 /* inline editable field */
@@ -188,8 +188,8 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .cat-search{padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;width:180px}
 .cat-search:focus{border-color:var(--forest)}
 .cat-table{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
-.cat-head{display:grid;grid-template-columns:70px 1.4fr 90px 90px 60px 72px 72px 1fr 60px;gap:4px;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
-.cat-row{display:grid;grid-template-columns:70px 1.4fr 90px 90px 60px 72px 72px 1fr 60px;gap:4px;padding:5px 10px;border-bottom:1px solid var(--border);align-items:center;font-size:12px}
+.cat-head{display:grid;grid-template-columns:70px 1.8fr 110px 60px 72px 72px 1fr 72px;gap:4px;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
+.cat-row{display:grid;grid-template-columns:70px 1.8fr 110px 60px 72px 72px 1fr 72px;gap:4px;padding:5px 10px;border-bottom:1px solid var(--border);align-items:start;font-size:12px}
 .cat-row:last-child{border-bottom:none}
 .cat-row:hover{background:var(--bg)}
 .part-badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
@@ -348,8 +348,11 @@ async function safeGet(path){
   catch(e){return [];}
 }
 async function dbPost(table,data){
-  const r=await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify(data)});
-  const j=await r.json();return Array.isArray(j)?j[0]:j;
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:{...H(),'Prefer':'return=representation'},body:JSON.stringify(data)});
+    if(!r.ok){const e=await r.text();console.error('POST',table,'failed:',e);return null;}
+    const j=await r.json();return Array.isArray(j)?j[0]:j;
+  }catch(e){console.error('POST',table,'error:',e);return null;}
 }
 async function dbPatch(table,filter,data){
   await fetch(SB_URL+'/rest/v1/'+table+'?'+filter,{method:'PATCH',headers:{...H(),'Prefer':'return=minimal'},body:JSON.stringify(data)});
@@ -425,7 +428,10 @@ function renderSidebar(){
       <div class="sb-item" style="opacity:.65">
         <span style="font-size:10px">📁</span>
         <span style="flex:1;font-size:11px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.name)}</span>
-        <button onclick="restoreProj('${p.id}')" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 6px;font-family:'Sarabun',sans-serif" title="คืนค่าโปรเจค">↩ คืน</button>
+        <div style="display:flex;gap:3px">
+          <button onclick="restoreProj('${p.id}')" style="background:var(--green-bg);color:var(--green);border:1px solid var(--green-bd);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 6px;font-family:'Sarabun',sans-serif" title="คืนค่าโปรเจค">↩</button>
+          <button onclick="delProjPermanent('${p.id}')" style="background:var(--red-bg);color:var(--red);border:1px solid var(--red-bd);border-radius:3px;cursor:pointer;font-size:10px;padding:1px 6px;font-family:'Sarabun',sans-serif" title="ลบถาวร">🗑</button>
+        </div>
       </div>`).join('')||'';
   }
 
@@ -534,10 +540,11 @@ function renderQT(){
       <input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/>
       <div class="it-total-txt">${fmt(tot)}</div>
       <div class="it-actions">
-        <button class="btn ghost sm" onclick="openEditItem('${item.id}')" title="แก้ไข" style="padding:2px 6px">✏</button>
-        <button class="btn ghost sm" onclick="toggleItemType('${item.id}','${isP?'item':'person'}')" title="${isP?'บุคคล → สินค้า':'สินค้า → บุคคล'}" style="font-size:12px;padding:2px 5px">${isP?'👤':'📦'}</button>
-        <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="${isOwn?'COT ON: ต้นทุนไม่นับกำไร':'COT OFF'}">C</button>
-        <button class="btn danger sm" onclick="delItem('${item.id}')">✕</button>
+        <button class="btn ghost sm" onclick="openEditItem('${item.id}')" title="แก้ไข" style="padding:2px 5px">✏</button>
+        <button class="btn ghost sm" onclick="addItemToCat('${item.id}')" title="บันทึกลง Catalogue" style="padding:2px 5px;font-size:11px">+C</button>
+        <button class="btn ghost sm" onclick="toggleItemType('${item.id}','${isP?'item':'person'}')" title="${isP?'บุคคล':'สินค้า'}" style="font-size:11px;padding:2px 4px">${isP?'👤':'📦'}</button>
+        <button class="btn ${isOwn?'purple':'ghost'} sm" onclick="toggleCot('${item.id}',${isOwn})" title="${isOwn?'COT ON':'COT OFF'}" style="padding:2px 5px">C</button>
+        <button class="btn danger sm" onclick="delItem('${item.id}')" style="padding:2px 5px">✕</button>
       </div>
     </div>`;
     return `<div class="it-row g-cli">
@@ -601,7 +608,7 @@ function renderQT(){
       <div class="qf"><label>สถานะ</label><select onchange="saveQF('status',this.value)">
         <option value="draft" ${qt.status==='draft'?'selected':''}>Draft</option>
         <option value="sent" ${qt.status==='sent'?'selected':''}>Sent</option>
-        <option value="final" ${qt.status==='final'?'selected':''}>Final ✓</option>
+        <option value="final" ${qt.status==='final'?'selected':''}>Final</option>
       </select></div>
     </div>
     <div class="qt-settings" data-noprint>
@@ -724,8 +731,11 @@ function openAddItem(section,isExtra){
   openModal(`<h2>+ เพิ่มรายการ${isExtra?' Extra':' — '+section}</h2>
     <input style="width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;margin-bottom:6px;font-family:'Sarabun',sans-serif;outline:none;background:var(--card);color:var(--text)" placeholder="ค้นหา Catalogue..." oninput="filterCP(this.value,'${section}',${isExtra})"/>
     <div class="cp-list" id="cp-list">${cats.map(c=>`<div class="cp-row" onclick="fillCat('${c.id}')">
-      <span style="flex:1;font-weight:500">${c.name}</span>
-      <span style="font-size:11px;color:var(--muted)">${fmt(c.cost_min)}${c.cost_max>c.cost_min?'–'+fmt(c.cost_max):''} / ${c.unit||'-'}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>
+        ${c.item_person?`<div style="font-size:11px;color:var(--muted)">${esc(c.item_person)}</div>`:''}
+      </div>
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">${fmt(c.cost_min)}${c.cost_max>c.cost_min?'–'+fmt(c.cost_max):''} / ${c.unit||'-'}</span>
     </div>`).join('')||'<div class="empty" style="padding:1rem;font-size:12px">ไม่มีรายการ</div>'}</div>
     <div style="margin-top:10px">
     <div class="mf" style="margin-bottom:6px">
@@ -773,17 +783,27 @@ async function saveAddItemAndCat(section,isExtra){
 }
 
 function filterCP(q,sec,isExtra){
-  const cats=(isExtra?catalogue:catalogue.filter(c=>c.part===sec)).filter(c=>c.name.toLowerCase().includes(q.toLowerCase()));
+  const ql=q.toLowerCase();
+  const cats=(isExtra?catalogue:catalogue.filter(c=>c.part===sec)).filter(c=>
+    (c.item_role||'').toLowerCase().includes(ql)||
+    (c.item_person||'').toLowerCase().includes(ql)||
+    (c.name||'').toLowerCase().includes(ql));
   document.getElementById('cp-list').innerHTML=cats.map(c=>`<div class="cp-row" onclick="fillCat('${c.id}')">
-    <span style="flex:1;font-weight:500">${c.name}</span>
-    <span style="font-size:11px;color:var(--muted)">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>
+      ${c.item_person?`<div style="font-size:11px;color:var(--muted)">${esc(c.item_person)}</div>`:''}
+    </div>
+    <span style="font-size:11px;color:var(--muted);white-space:nowrap">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
   </div>`).join('')||'<div class="empty" style="padding:1rem;font-size:12px">ไม่พบ</div>';
 }
 function fillCat(id){
   const c=catalogue.find(x=>x.id===id);if(!c)return;
   document.getElementById('ai-role').value=c.item_role||'';
   document.getElementById('ai-person').value=c.item_person||'';
-  document.getElementById('ai-name').value=c.name;
+  /* name field = description only (strip "role — " prefix if present) */
+  const desc=(c.name||'').replace(new RegExp('^'+c.item_role.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*—\\s*'),'');
+  document.getElementById('ai-name').value=c.item_role===c.name?'':desc;
+  document.getElementById('ai-detail').value=c.notes||'';
   document.getElementById('ai-unit').value=c.unit||'';
   document.getElementById('ai-cost').value=c.cost_min;
   calcMkP();
@@ -839,32 +859,35 @@ async function saveAsPreset(){
 async function doSaveAsPreset(){
   const name=document.getElementById('prn').value.trim();if(!name)return;
   const ps=await dbPost('qt_presets',{name,description:document.getElementById('prd').value});
-  if(ps){
-    const its=qItems.filter(i=>i.quotation_id===activeQTId);
-    let idx=0;
-    for(const i of its){
-      const pi=await dbPost('qt_preset_items',{
-        preset_id:ps.id,
-        section:i.section,
-        name:i.name||'',
-        item_role:i.item_role||'',
-        item_person:i.item_person||'',
-        detail:i.detail||'',
-        unit:i.unit||'',
-        qty:i.qty||1,
-        cost:i.cost||0,
-        price:i.price||0,
-        markup_pct:i.markup_pct||0,
-        is_extra:i.is_extra||false,
-        sort_order:idx++
-      });
-      if(pi)presetItems.push(pi);
-    }
-    presets.push(ps);activePresetId=ps.id;
+  if(!ps){alert('บันทึก Preset ไม่สำเร็จ ลองใหม่อีกครั้ง');return;}
+  const its=qItems.filter(i=>i.quotation_id===activeQTId);
+  let ok=0,fail=0;
+  let idx=0;
+  for(const i of its){
+    /* map 'Extra' section → keep original 3-section value, use is_extra flag */
+    const sec=['Pre-Production','Production','Post-Production'].includes(i.section)?i.section:'Pre-Production';
+    const pi=await dbPost('qt_preset_items',{
+      preset_id:ps.id,
+      section:sec,
+      name:i.name||'',
+      item_role:i.item_role||'',
+      item_person:i.item_person||'',
+      detail:i.detail||'',
+      unit:i.unit||'',
+      qty:i.qty||1,
+      cost:i.cost||0,
+      price:i.price||0,
+      markup_pct:i.markup_pct||0,
+      is_extra:!!i.is_extra,
+      sort_order:idx++
+    });
+    if(pi){presetItems.push(pi);ok++;}else fail++;
   }
+  presets.push(ps);activePresetId=ps.id;
   closeModal();renderPresetSidebar();
   showPage('preset',document.querySelectorAll('.tnavbtn')[2]);
   renderPreset();
+  if(fail>0)setTimeout(()=>alert(`คัดลอกสำเร็จ ${ok} รายการ — ล้มเหลว ${fail} รายการ (ดู console สำหรับรายละเอียด)`),300);
 }
 
 /* PROJECTS */
@@ -898,23 +921,29 @@ async function catBlur(el){
 function renderCat(){
   const q=(document.getElementById('cat-q')?.value||'').toLowerCase();
   let list=catalogue.filter(c=>catFilter==='all'||c.part===catFilter);
-  if(q)list=list.filter(c=>c.name.toLowerCase().includes(q)||(c.notes||'').toLowerCase().includes(q));
+  if(q)list=list.filter(c=>
+    (c.item_role||'').toLowerCase().includes(q)||
+    (c.item_person||'').toLowerCase().includes(q)||
+    (c.name||'').toLowerCase().includes(q)||
+    (c.notes||'').toLowerCase().includes(q));
   const wrap=document.getElementById('cat-wrap');if(!wrap)return;
   if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
   wrap.innerHTML=`<div class="cat-table">
     <div class="cat-head">
-      <div>หมวด</div><div>ชื่อรายการ</div><div>ตำแหน่ง/ชนิด</div><div>ชื่อ/รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div></div>
+      <div>หมวด</div><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div></div>
     </div>
     ${list.map(c=>`<div class="cat-row">
-      <div><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
-      <div><input class="ci" value="${esc(c.name)}" onblur="patchCatTxt('${c.id}','name',this.value)" style="font-weight:500"/></div>
-      <div><input class="ci" value="${esc(c.item_role)}" onblur="patchCatTxt('${c.id}','item_role',this.value)" placeholder="ตำแหน่ง/ชนิด..."/></div>
-      <div><input class="ci" value="${esc(c.item_person)}" onblur="patchCatTxt('${c.id}','item_person',this.value)" placeholder="ชื่อ/รุ่น..."/></div>
+      <div style="padding-top:4px"><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <input class="ci" value="${esc(c.item_role)}" onblur="patchCatTxt('${c.id}','item_role',this.value)" placeholder="ตำแหน่ง / ชนิด *" style="font-weight:600"/>
+        <input class="ci" value="${esc(c.name)}" onblur="patchCatTxt('${c.id}','name',this.value)" placeholder="คำอธิบาย..." style="font-size:11px;color:var(--muted)"/>
+      </div>
+      <div><input class="ci" value="${esc(c.item_person)}" onblur="patchCatTxt('${c.id}','item_person',this.value)" placeholder="ชื่อ / รุ่น..."/></div>
       <div><input class="ci" value="${esc(c.unit)}" onblur="patchCatTxt('${c.id}','unit',this.value)" placeholder="day..."/></div>
       <div><input class="ci num" data-raw="${c.cost_min||0}" data-id="${c.id}" data-field="cost_min" value="${fmt(c.cost_min||0)}" onfocus="catFocus(this)" onblur="catBlur(this)"/></div>
       <div><input class="ci num" data-raw="${c.cost_max||0}" data-id="${c.id}" data-field="cost_max" value="${fmt(c.cost_max||0)}" onfocus="catFocus(this)" onblur="catBlur(this)"/></div>
       <div><input class="ci" value="${esc(c.notes)}" onblur="patchCatTxt('${c.id}','notes',this.value)" placeholder="หมายเหตุ..."/></div>
-      <div style="display:flex;gap:3px;justify-content:flex-end">
+      <div style="display:flex;gap:3px;justify-content:flex-end;padding-top:2px">
         <button class="btn ghost sm" onclick="cloneCat('${c.id}')" title="Clone">📋</button>
         <button class="btn danger sm" onclick="delCat('${c.id}')">✕</button>
       </div>
@@ -973,22 +1002,33 @@ function openAddCat(){
       <div class="mf"><label>หมวด</label><select id="cp"><option>Pre-Production</option><option>Production</option><option>Post-Production</option></select></div>
       <div class="mf"><label>Unit</label><input id="cu" placeholder="day/lot/role..."/></div>
     </div>
-    <div class="mf"><label>ชื่อรายการหลัก *</label><input id="cn" placeholder="เช่น Director, Camera Package..."/></div>
     <div class="mf-row">
-      <div class="mf"><label id="cr-label">ตำแหน่ง</label><input id="cr" placeholder="เช่น DOP..."/></div>
-      <div class="mf"><label id="cp2-label">ชื่อ</label><input id="cp2" placeholder="เช่น ขิม..."/></div>
+      <div class="mf"><label id="cr-label">ตำแหน่ง *</label><input id="cr" placeholder="เช่น DOP, ตากล้อง..."/></div>
+      <div class="mf"><label id="cp2-label">ชื่อ / รุ่น</label><input id="cp2" placeholder="เช่น ขิม, Sony FX3..."/></div>
     </div>
+    <div class="mf"><label>คำอธิบายเพิ่มเติม</label><input id="cn" placeholder="รายละเอียด, หมายเหตุ... (ไม่บังคับ)"/></div>
     <div class="mf-row">
       <div class="mf"><label>ราคา Min</label><input id="cmin" type="number" value="0"/></div>
       <div class="mf"><label>ราคา Max</label><input id="cmax" type="number" value="0"/></div>
     </div>
-    <div class="mf"><label>หมายเหตุ / รายละเอียด</label><textarea id="cnotes" placeholder="รายละเอียดเพิ่มเติม..."></textarea></div>
+    <div class="mf"><label>หมายเหตุ</label><textarea id="cnotes" placeholder="หมายเหตุ..."></textarea></div>
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddCat()">บันทึก</button></div>`);
-  setTimeout(()=>{document.getElementById('cn')?.focus();setCatType('person');},100);
+  setTimeout(()=>{document.getElementById('cr')?.focus();setCatType('person');},100);
 }
 async function doAddCat(){
-  const name=document.getElementById('cn').value.trim();if(!name)return;
-  const c=await dbPost('qt_catalogue',{name,part:document.getElementById('cp').value,unit:document.getElementById('cu').value,item_role:document.getElementById('cr')?.value||'',item_person:document.getElementById('cp2')?.value||'',cost_min:+document.getElementById('cmin').value||0,cost_max:+document.getElementById('cmax').value||0,notes:document.getElementById('cnotes').value});
+  const role=document.getElementById('cr').value.trim();
+  const name=document.getElementById('cn').value.trim();
+  if(!role)return alert('กรุณาระบุตำแหน่ง/ชนิด');
+  const c=await dbPost('qt_catalogue',{
+    name:role+(name?' — '+name:''),
+    item_role:role,
+    item_person:document.getElementById('cp2')?.value||'',
+    part:document.getElementById('cp').value,
+    unit:document.getElementById('cu').value,
+    cost_min:+document.getElementById('cmin').value||0,
+    cost_max:+document.getElementById('cmax').value||0,
+    notes:document.getElementById('cnotes').value
+  });
   if(c)catalogue.push(c);closeModal();renderCat();
 }
 
@@ -1077,13 +1117,13 @@ function openAddPI(sec){
   openModal(`<h2>+ เพิ่มรายการ Preset — ${sec}</h2>
     <input style="width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;margin-bottom:6px;font-family:'Sarabun',sans-serif;outline:none;background:var(--card);color:var(--text)" placeholder="ค้นหา Catalogue..." oninput="filterPICP(this.value,'${sec}')"/>
     <div class="cp-list" id="cp-list">${cats.map(c=>`<div class="cp-row" onclick="fillCatPI('${c.id}')">
-      <span style="flex:1;font-weight:500">${c.name}</span>
-      <span style="font-size:11px;color:var(--muted)">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
+      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>${c.item_person?`<div style="font-size:11px;color:var(--muted)">${esc(c.item_person)}</div>`:''}</div>
+      <span style="font-size:11px;color:var(--muted);white-space:nowrap">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
     </div>`).join('')||'<div class="empty" style="padding:1rem;font-size:12px">ไม่มีรายการ</div>'}</div>
     <div style="margin-top:10px">
     <div class="mf-row">
-      <div class="mf"><label>ตำแหน่ง</label><input id="pi-role" placeholder="DOP..."/></div>
-      <div class="mf"><label>ชื่อ / รุ่น</label><input id="pi-person" placeholder="ขิม..."/></div>
+      <div class="mf"><label>ตำแหน่ง *</label><input id="pi-role" placeholder="DOP, ชนิด..."/></div>
+      <div class="mf"><label>ชื่อ / รุ่น</label><input id="pi-person" placeholder="ขิม, Sony FX3..."/></div>
     </div>
     <div class="mf"><label>ชื่อรายการ *</label><input id="pi-name"/></div>
     <div class="mf-row">
@@ -1098,15 +1138,25 @@ function openAddPI(sec){
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddPI('${sec}')">เพิ่ม</button></div>`);
 }
 function filterPICP(q,sec){
-  const cats=catalogue.filter(c=>c.part===sec&&c.name.toLowerCase().includes(q.toLowerCase()));
+  const ql=q.toLowerCase();
+  const cats=catalogue.filter(c=>c.part===sec&&(
+    (c.item_role||'').toLowerCase().includes(ql)||
+    (c.item_person||'').toLowerCase().includes(ql)||
+    (c.name||'').toLowerCase().includes(ql)));
   document.getElementById('cp-list').innerHTML=cats.map(c=>`<div class="cp-row" onclick="fillCatPI('${c.id}')">
-    <span style="flex:1;font-weight:500">${c.name}</span><span style="font-size:11px;color:var(--muted)">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>
+      ${c.item_person?`<div style="font-size:11px;color:var(--muted)">${esc(c.item_person)}</div>`:''}
+    </div>
+    <span style="font-size:11px;color:var(--muted);white-space:nowrap">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
   </div>`).join('')||'<div class="empty" style="padding:1rem;font-size:12px">ไม่พบ</div>';
 }
 function fillCatPI(id){
   const c=catalogue.find(x=>x.id===id);if(!c)return;
   document.getElementById('pi-role').value=c.item_role||'';
-  document.getElementById('pi-name').value=c.name;
+  document.getElementById('pi-person').value=c.item_person||'';
+  const desc=(c.name||'').replace(new RegExp('^'+c.item_role.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'\\s*—\\s*'),'');
+  document.getElementById('pi-name').value=c.item_role===c.name?'':desc;
   document.getElementById('pi-unit').value=c.unit||'';
   document.getElementById('pi-cost').value=c.cost_min;
   document.querySelectorAll('.cp-row').forEach(r=>r.classList.remove('sel'));
@@ -1172,8 +1222,42 @@ async function restoreProj(id){
   await dbPatch('qt_projects','id=eq.'+id,{archived:false});
   projects=projects.map(p=>p.id===id?{...p,archived:false}:p);
   renderSidebar();
-  const archList=document.getElementById('arch-list');
-  if(archList&&archList.style.display!=='none'){}
+}
+async function delProjPermanent(id){
+  const p=projects.find(x=>x.id===id);
+  if(!confirm(`ลบโปรเจค "${p?.name}" ถาวร? ข้อมูลทั้งหมดจะหายหมด`))return;
+  /* delete all items → quotations → project */
+  const qts=quotations.filter(q=>q.project_id===id);
+  for(const q of qts){
+    await dbDelete('qt_items','quotation_id=eq.'+q.id);
+    qItems=qItems.filter(i=>i.quotation_id!==q.id);
+  }
+  await dbDelete('qt_quotations','project_id=eq.'+id);
+  quotations=quotations.filter(q=>q.project_id!==id);
+  await dbDelete('qt_projects','id=eq.'+id);
+  projects=projects.filter(x=>x.id!==id);
+  if(activeProjId===id){activeProjId=null;activeQTId=null;
+    document.getElementById('qt-main').innerHTML='<div class="empty" style="margin:auto;padding:4rem">เลือกโปรเจคครับ</div>';}
+  renderSidebar();
+}
+/* ADD EXISTING ITEM TO CATALOGUE */
+async function addItemToCat(id){
+  const item=qItems.find(i=>i.id===id);if(!item)return;
+  const role=item.item_role||item.name||'';
+  if(!role){alert('ไม่มีชื่อตำแหน่ง/ชนิด');return;}
+  const sec=['Pre-Production','Production','Post-Production'].includes(item.section)?item.section:'Pre-Production';
+  const c=await dbPost('qt_catalogue',{
+    name:role+(item.name&&item.item_role?' — '+item.name:''),
+    item_role:item.item_role||'',
+    item_person:item.item_person||'',
+    part:sec,
+    unit:item.unit||'',
+    cost_min:item.cost||0,
+    cost_max:item.cost||0,
+    notes:item.detail||item.name||''
+  });
+  if(c){catalogue.push(c);alert('เพิ่มลง Catalogue แล้วครับ ✓');}
+  else alert('บันทึกไม่สำเร็จ ลองใหม่');
 }
 function toggleArchiveSection(){
   const list=document.getElementById('arch-list');
