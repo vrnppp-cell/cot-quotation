@@ -906,11 +906,8 @@ async function doSaveAsPreset(){
   const its=qItems.filter(i=>i.quotation_id===activeQTId);
   let ok=0,fail=0;
   for(const i of its){
-    /* map 'Extra' section → nearest standard section */
-    const sec=['Pre-Production','Production','Post-Production'].includes(i.section)?i.section:'Pre-Production';
     const pi=await dbPost('qt_preset_items',{
       preset_id:ps.id,
-      section:sec,
       name:i.name||'',
       item_role:i.item_role||'',
       item_person:i.item_person||'',
@@ -1087,29 +1084,8 @@ function renderPreset(){
   if(!ps){document.getElementById('preset-main').innerHTML='<div class="empty" style="margin:auto;padding:4rem">เลือก Preset ทางซ้ายครับ</div>';return;}
   const pis=presetItems.filter(i=>i.preset_id===activePresetId);
 
-  const renderPSec=(sec,label,cls)=>{
-    const si=pis.filter(i=>i.section===sec&&!i.is_extra);
-    return `<div class="section-block">
-      <div class="section-head ${cls}"><div class="sh-title">${label}</div><div class="sh-total">${si.length} รายการ</div></div>
-      <div>
-        <div class="it-head g-int"><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
-        ${si.map(i=>`<div class="it-row g-int">
-          <div class="it-name-col">
-            <input class="ie name-ie" value="${i.item_role||''}" placeholder="ตำแหน่ง" onblur="patchPI('${i.id}','item_role',this.value)" style="font-size:11px;color:var(--hint)"/>
-            <input class="ie name-ie" value="${i.name||''}" placeholder="ชื่อรายการ" onblur="patchPI('${i.id}','name',this.value)" style="font-weight:500"/>
-          </div>
-          <input class="ie" value="${i.item_person||''}" placeholder="ชื่อ/รุ่น" onblur="patchPI('${i.id}','item_person',this.value)"/>
-
-          <div><input class="ie num" value="${i.qty||1}" onblur="patchPINum('${i.id}','qty',+this.value)"/></div>
-          <div class="it-cost-txt">${fmt(i.cost)}</div>
-          <div><input class="ie num" value="${i.price||0}" onblur="patchPINum('${i.id}','price',+this.value)"/></div>
-          <div><input class="ie mk" value="${i.markup_pct||''}" placeholder="0" onblur="patchPINum('${i.id}','markup_pct',+this.value)"/></div>
-          <div class="it-total-txt">${fmt((i.price||0)*(i.qty||1))}</div>
-          <div class="it-actions"><button class="btn danger sm" onclick="delPI('${i.id}')">✕</button></div>
-        </div>`).join('')}
-        <div class="add-row" onclick="openAddPI('${sec}')">+ เพิ่มรายการ ${label}</div>
-      </div></div>`;
-  };
+  const totalPrice=pis.reduce((a,i)=>a+(i.price||0)*(i.qty||1),0);
+  const totalCost=pis.reduce((a,i)=>a+(i.cost||0)*(i.qty||1),0);
 
   document.getElementById('preset-main').innerHTML=`
     <div class="qt-header-card">
@@ -1118,14 +1094,36 @@ function renderPreset(){
         <span class="chip preset-chip">⭐ Preset</span>
       </div>
       <div class="qf" style="margin-bottom:.75rem"><label>คำอธิบาย</label><input value="${ps.description||''}" onblur="patchPreset('description',this.value)" placeholder="คำอธิบาย..."/></div>
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <button class="btn primary" onclick="applyPreset('${ps.id}')">➕ ใช้กับใบ QT ปัจจุบัน</button>
         <button class="btn danger" onclick="delPreset('${ps.id}')">🗑 ลบ Preset</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--muted)">${pis.length} รายการ &nbsp;|&nbsp; ราคาขาย <strong>฿ ${fmt(totalPrice)}</strong> &nbsp; ต้นทุน <span style="color:var(--amber)">฿ ${fmt(totalCost)}</span></span>
       </div>
     </div>
-    ${renderPSec('Pre-Production','Pre-Production','sh-pre')}
-    ${renderPSec('Production','Production','sh-pro')}
-    ${renderPSec('Post-Production','Post-Production','sh-post')}`;
+    <div class="section-block">
+      <div class="section-head sh-pre">
+        <div class="sh-title">รายการทั้งหมด</div>
+        <div class="sh-total">${pis.length} รายการ</div>
+        <div class="sh-cost">ราคาขายรวม ฿ ${fmt(totalPrice)}</div>
+      </div>
+      <div>
+        <div class="it-head g-int"><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>
+        ${pis.map(i=>`<div class="it-row g-int">
+          <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+            <input class="ie" value="${esc(i.item_role||'')}" placeholder="ตำแหน่ง / ชนิด" onblur="patchPI('${i.id}','item_role',this.value)" style="font-weight:600;font-size:12px"/>
+            <input class="ie sm-txt" value="${esc(i.name||'')}" placeholder="คำอธิบาย..." onblur="patchPI('${i.id}','name',this.value)"/>
+          </div>
+          <input class="ie" value="${esc(i.item_person||'')}" placeholder="ชื่อ / รุ่น" onblur="patchPI('${i.id}','item_person',this.value)"/>
+          <input class="ie num" value="${i.qty||1}" onblur="patchPINum('${i.id}','qty',+this.value)"/>
+          <div class="it-cost-txt">${fmt(i.cost)}</div>
+          <input class="ie num" value="${i.price||0}" onblur="patchPINum('${i.id}','price',+this.value)"/>
+          <input class="ie mk" value="${i.markup_pct||''}" placeholder="0" onblur="patchPINum('${i.id}','markup_pct',+this.value)"/>
+          <div class="it-total-txt">${fmt((i.price||0)*(i.qty||1))}</div>
+          <div class="it-actions"><button class="btn danger sm" onclick="delPI('${i.id}')">✕</button></div>
+        </div>`).join('')||'<div class="empty" style="padding:2rem">ยังไม่มีรายการ</div>'}
+        <div class="add-row" onclick="openAddPI()">+ เพิ่มรายการ</div>
+      </div>
+    </div>`;
 }
 
 async function patchPreset(f,v){
@@ -1152,37 +1150,45 @@ async function delPI(id){
   await dbDelete('qt_preset_items','id=eq.'+id);
   presetItems=presetItems.filter(i=>i.id!==id);renderPreset();
 }
-function openAddPI(sec){
-  const cats=catalogue.filter(c=>c.part===sec);
-  openModal(`<h2>+ เพิ่มรายการ Preset — ${sec}</h2>
-    <input style="width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;margin-bottom:6px;font-family:'Sarabun',sans-serif;outline:none;background:var(--card);color:var(--text)" placeholder="ค้นหา Catalogue..." oninput="filterPICP(this.value,'${sec}')"/>
-    <div class="cp-list" id="cp-list">${cats.map(c=>`<div class="cp-row" onclick="fillCatPI('${c.id}')">
-      <div style="flex:1;min-width:0"><div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>${c.item_person?`<div style="font-size:11px;color:var(--muted)">${esc(c.item_person)}</div>`:''}</div>
-      <span style="font-size:11px;color:var(--muted);white-space:nowrap">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
-    </div>`).join('')||'<div class="empty" style="padding:1rem;font-size:12px">ไม่มีรายการ</div>'}</div>
+function openAddPI(){
+  const cpRows=cats=>cats.map(c=>`<div class="cp-row" onclick="fillCatPI('${c.id}')">
+    <div style="flex:1;min-width:0">
+      <div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>
+      ${c.item_person?`<div style="font-size:11px;color:var(--muted)">${esc(c.item_person)}</div>`:''}
+    </div>
+    <span style="font-size:11px;color:var(--muted);white-space:nowrap">${fmt(c.cost_min)} / ${c.unit||'-'}</span>
+  </div>`).join('')||'<div class="empty" style="padding:1rem;font-size:12px">ไม่มีรายการ</div>';
+  openModal(`<h2>+ เพิ่มรายการ Preset</h2>
+    <input style="width:100%;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;margin-bottom:6px;font-family:'Sarabun',sans-serif;outline:none;background:var(--card);color:var(--text)" placeholder="ค้นหา Catalogue..." oninput="filterPICP(this.value)"/>
+    <div class="cp-list" id="cp-list">${cpRows(catalogue)}</div>
     <div style="margin-top:10px">
     <div class="mf-row">
       <div class="mf"><label>ตำแหน่ง *</label><input id="pi-role" placeholder="DOP, ชนิด..."/></div>
       <div class="mf"><label>ชื่อ / รุ่น</label><input id="pi-person" placeholder="ขิม, Sony FX3..."/></div>
     </div>
-    <div class="mf"><label>ชื่อรายการ *</label><input id="pi-name"/></div>
+    <div class="mf"><label>คำอธิบาย</label><input id="pi-name" placeholder="รายละเอียด... (ไม่บังคับ)"/></div>
     <div class="mf-row">
       <div class="mf"><label>Unit</label><input id="pi-unit"/></div>
       <div class="mf"><label>จำนวน</label><input id="pi-qty" type="number" value="1"/></div>
     </div>
     <div class="mf-row">
-      <div class="mf"><label>ต้นทุน</label><input id="pi-cost" type="number" value="0"/></div>
+      <div class="mf"><label>ต้นทุน</label><input id="pi-cost" type="number" value="0" oninput="calcPIPrice()"/></div>
       <div class="mf"><label>ราคาขาย</label><input id="pi-price" type="number" value="0"/></div>
     </div>
     </div>
-    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddPI('${sec}')">เพิ่ม</button></div>`);
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddPI()">เพิ่ม</button></div>`);
 }
-function filterPICP(q,sec){
+function calcPIPrice(){
+  const cost=+document.getElementById('pi-cost')?.value||0;
+  const mk=15;
+  if(cost>0)document.getElementById('pi-price').value=Math.round(cost*(1+mk/100));
+}
+function filterPICP(q){
   const ql=q.toLowerCase();
-  const cats=catalogue.filter(c=>c.part===sec&&(
+  const cats=catalogue.filter(c=>
     (c.item_role||'').toLowerCase().includes(ql)||
     (c.item_person||'').toLowerCase().includes(ql)||
-    (c.name||'').toLowerCase().includes(ql)));
+    (c.name||'').toLowerCase().includes(ql));
   document.getElementById('cp-list').innerHTML=cats.map(c=>`<div class="cp-row" onclick="fillCatPI('${c.id}')">
     <div style="flex:1;min-width:0">
       <div style="font-weight:600;font-size:12px">${esc(c.item_role)||esc(c.name)||'-'}</div>
@@ -1202,14 +1208,20 @@ function fillCatPI(id){
   document.querySelectorAll('.cp-row').forEach(r=>r.classList.remove('sel'));
   event.currentTarget.classList.add('sel');
 }
-async function doAddPI(sec){
-  const name=document.getElementById('pi-name').value.trim();if(!name)return;
-  const i=await dbPost('qt_preset_items',{preset_id:activePresetId,section:sec,
-    item_role:document.getElementById('pi-role').value,item_person:document.getElementById('pi-person').value,
-    name,unit:document.getElementById('pi-unit').value,
+async function doAddPI(){
+  const role=document.getElementById('pi-role').value.trim();
+  if(!role)return alert('กรุณาระบุตำแหน่ง/ชนิด');
+  const i=await dbPost('qt_preset_items',{
+    preset_id:activePresetId,
+    item_role:role,
+    item_person:document.getElementById('pi-person').value,
+    name:document.getElementById('pi-name').value,
+    unit:document.getElementById('pi-unit').value,
     qty:+document.getElementById('pi-qty').value||1,
-    cost:+document.getElementById('pi-cost').value||0,price:+document.getElementById('pi-price').value||0,
-    markup_pct:0});
+    cost:+document.getElementById('pi-cost').value||0,
+    price:+document.getElementById('pi-price').value||0,
+    markup_pct:0
+  });
   if(i)presetItems.push(i);closeModal();renderPreset();
 }
 
