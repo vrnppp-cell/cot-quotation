@@ -383,9 +383,31 @@ let CO={
   logo_url:''
 };
 function loadCO(){try{const s=localStorage.getItem('qt_co');if(s){const o=JSON.parse(s);Object.assign(CO,o);}}catch(e){}}
+async function loadCORemote(){
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/qt_settings?key=eq.company&select=value&limit=1',{headers:H()});
+    if(!r.ok)return; // table ยังไม่มี — ข้ามได้
+    const d=await r.json();
+    if(d&&d[0]&&d[0].value){
+      Object.assign(CO,d[0].value);
+      localStorage.setItem('qt_co',JSON.stringify(CO)); // cache ไว้ offline
+    }
+  }catch(e){}
+}
 function openCOSettings(){
   const prev=CO.logo_url?`<div style="margin-bottom:6px"><img src="${CO.logo_url}" style="max-height:56px;max-width:180px;object-fit:contain;border:1px solid var(--border);border-radius:4px;padding:4px;background:#fff" id="co-logo-prev" onerror="this.style.display='none'"/></div>`:'<div id="co-logo-prev" style="display:none"></div>';
   openModal(`<h2>⚙ ข้อมูลบริษัท</h2>
+    <details style="margin-bottom:12px;background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--rsm);padding:8px 12px;font-size:11px;color:var(--amber)">
+      <summary style="cursor:pointer;font-weight:600">ℹ️ วิธีทำให้ sync ได้ทุก Device</summary>
+      <div style="margin-top:8px;line-height:1.7">สร้าง table นี้ใน Supabase → SQL Editor ครั้งเดียวครับ:<br/>
+      <code style="display:block;margin-top:6px;padding:8px;background:var(--card2);border-radius:4px;white-space:pre;font-size:11px;color:var(--text);border:1px solid var(--border);font-family:monospace;overflow-x:auto">create table if not exists qt_settings (
+  key  text primary key,
+  value jsonb not null default '{}'
+);
+alter table qt_settings enable row level security;
+create policy "public_all" on qt_settings
+  for all using (true) with check (true);</code></div>
+    </details>
     <div class="mf"><label>ชื่อบริษัท (ไทย)</label><input id="co-name" value="${esc(CO.name)}"/></div>
     <div class="mf"><label>ชื่อบริษัท (English)</label><input id="co-name_en" value="${esc(CO.name_en)}"/></div>
     <div class="mf"><label>ที่อยู่</label><input id="co-addr" value="${esc(CO.addr)}"/></div>
@@ -424,7 +446,7 @@ function coLogoUrlPreview(url){
   else p.style.display='none';
   document.getElementById('co-logo-url').dataset.b64='';
 }
-function saveCOSettings(){
+async function saveCOSettings(){
   const logoInput=document.getElementById('co-logo-url');
   const logoVal=logoInput.dataset.b64||logoInput.value.trim()||CO.logo_url;
   CO={
@@ -438,7 +460,13 @@ function saveCOSettings(){
   };
   localStorage.setItem('qt_co',JSON.stringify(CO));
   closeModal();
-  alert('บันทึกข้อมูลบริษัทเรียบร้อยแล้วครับ ✓');
+  // บันทึกลง Supabase ด้วย (sync ข้าม device)
+  const res=await dbUpsert('qt_settings',{key:'company',value:CO});
+  if(res){
+    alert('บันทึกข้อมูลบริษัทเรียบร้อยแล้วครับ ✓\n(sync ทุก device แล้ว)');
+  }else{
+    alert('บันทึกในเครื่องนี้แล้วครับ ✓\n⚠ ไม่สามารถ sync ข้าม device ได้ — กรุณาสร้าง table qt_settings ใน Supabase ก่อนครับ (ดูคำแนะนำจาก ⚙ อีกครั้ง)');
+  }
 }
 let activeProjId=null,activeQTId=null,activePresetId=null;
 let currentView='internal',catFilter='all',isDark=false;
@@ -473,6 +501,13 @@ async function dbPatch(table,filter,data){
 }
 async function dbDelete(table,filter){
   await fetch(SB_URL+'/rest/v1/'+table+'?'+filter,{method:'DELETE',headers:H()});
+}
+async function dbUpsert(table,data){
+  try{
+    const r=await fetch(SB_URL+'/rest/v1/'+table,{method:'POST',headers:{...H(),'Prefer':'resolution=merge-duplicates,return=representation'},body:JSON.stringify(data)});
+    if(!r.ok){const e=await r.text();console.error('UPSERT',table,'failed:',e);return null;}
+    const j=await r.json();return Array.isArray(j)?j[0]:j;
+  }catch(e){console.error('UPSERT',table,'error:',e);return null;}
 }
 
 async function connectDB(){
@@ -520,6 +555,7 @@ async function loadAll(){
       safeGet('qt_preset_items?select=*&order=created_at.asc')
     ]);
     projects=pr;quotations=qt;qItems=it;catalogue=cat;presets=ps;presetItems=psi;
+    await loadCORemote();
     setSyncDot(true);
     renderSidebar();renderPresetSidebar();
     if(activeQTId)renderQT();
