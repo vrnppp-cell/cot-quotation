@@ -137,8 +137,11 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .it-row{display:grid;padding:6px 10px;border-bottom:1px solid var(--border);font-size:12px;align-items:start;transition:background .1s;gap:4px}
 .it-row:hover{background:var(--bg)}
 .it-row.cot-row{border-left:3px solid var(--purple)}
-/* internal cols: role+name | person | inout | qty | cost | price | mk | total | actions */
-.g-int{grid-template-columns:1.8fr 1fr 42px 72px 78px 44px 68px 128px}
+/* internal cols: sort | role+name | person | qty | cost | price | mk | total | actions */
+.g-int{grid-template-columns:22px 1.8fr 1fr 42px 72px 78px 44px 68px 106px}
+.sort-btns{display:flex;flex-direction:column;gap:1px;align-items:center;justify-content:center;padding-top:2px}
+.sort-btn{background:transparent;border:none;cursor:pointer;color:var(--border2);font-size:12px;padding:0 4px;line-height:1.2;border-radius:3px;transition:all .1s}
+.sort-btn:hover{background:var(--bg);color:var(--forest)}
 .g-cli{grid-template-columns:2fr 1fr 55px 85px 75px}
 .it-cell{display:flex;flex-direction:column;gap:1px}
 /* inline editable field */
@@ -241,7 +244,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 
 /* PRINT */
 @media print{
-  .topbar,.sidebar,.sum-actions-left,.sum-actions-right,.it-actions,.add-row,.btn,
+  .topbar,.sidebar,.sum-actions-left,.sum-actions-right,.it-actions,.sort-btns,.add-row,.btn,
   .view-toggle,.qt-settings,.mgmt-cost,.sh-chev,.io-toggle,
   [data-noprint]{display:none!important}
   .qt-layout,.preset-layout{grid-template-columns:1fr!important}
@@ -251,7 +254,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
   .section-block{page-break-inside:avoid}
   @page{size:A4 portrait;margin:15mm 12mm}
   .g-int{grid-template-columns:1.8fr 1fr 50px 90px 75px!important}
-  .it-cost-txt,.g-int .it-cell:nth-child(5),.g-int .it-cell:nth-child(7){display:none!important}
+  .it-cost-txt,.g-int>:nth-child(6),.g-int>:nth-child(8){display:none!important}
 }
 </style>
 </head>
@@ -716,7 +719,7 @@ function renderQT(){
   const margin=beforeVat>0?((profit/beforeVat)*100).toFixed(1):0;
 
   const renderHead=()=>isInt
-    ?`<div class="it-head g-int"><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
+    ?`<div class="it-head g-int"><div></div><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ต้นทุน</div><div style="text-align:right">ราคาขาย</div><div style="text-align:center">MK%</div><div style="text-align:right">รวม</div><div></div></div>`
     :`<div class="it-head g-cli"><div>ตำแหน่ง / รายการ</div><div>ชื่อ / รุ่น</div><div style="text-align:right">จน.</div><div style="text-align:right">ราคา/unit</div><div style="text-align:right">รวม</div></div>`;
 
   const renderItem=(item)=>{
@@ -724,6 +727,10 @@ function renderQT(){
     const isOwn=item.is_cot;
     const isP=(item.io_type||'person')==='person';
     if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}">
+      <div class="sort-btns">
+        <button class="sort-btn" onclick="moveItem('${item.id}','up')" title="เลื่อนขึ้น">▲</button>
+        <button class="sort-btn" onclick="moveItem('${item.id}','down')" title="เลื่อนลง">▼</button>
+      </div>
       <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
         <input class="ie" value="${esc(item.item_role)}" placeholder="${isP?'ตำแหน่ง *':'ชนิด *'}" onblur="patchItemLocal('${item.id}','item_role',this.value)" style="font-weight:600;font-size:12px"/>
         <input class="ie sm-txt" value="${esc(item.name)}" placeholder="คำอธิบายเพิ่มเติม..." onblur="patchItemLocal('${item.id}','name',this.value)"/>
@@ -735,8 +742,6 @@ function renderQT(){
       <input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/>
       <div class="it-total-txt">${fmt(tot)}</div>
       <div class="it-actions">
-        <button class="btn ghost sm" onclick="moveItem('${item.id}','up')" title="เลื่อนขึ้น" style="padding:2px 5px;font-size:11px;color:var(--muted)">↑</button>
-        <button class="btn ghost sm" onclick="moveItem('${item.id}','down')" title="เลื่อนลง" style="padding:2px 5px;font-size:11px;color:var(--muted)">↓</button>
         <button class="btn ghost sm" onclick="openEditItem('${item.id}')" title="แก้ไข" style="padding:2px 5px">✏</button>
         <button class="btn ghost sm" onclick="addItemToCat('${item.id}')" title="บันทึกลง Catalogue" style="padding:2px 5px;font-size:11px">+C</button>
         <button class="btn ghost sm" onclick="toggleItemType('${item.id}','${isP?'item':'person'}')" title="${isP?'บุคคล':'สินค้า'}" style="font-size:11px;padding:2px 4px">${isP?'👤':'📦'}</button>
