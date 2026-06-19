@@ -471,6 +471,36 @@ async function saveCOSettings(){
   }
 }
 let activeProjId=null,activeQTId=null,activePresetId=null;
+
+/* ── Item Order (localStorage, no DB column needed) ── */
+function getItemOrder(qtId){try{return JSON.parse(localStorage.getItem('qt_ord_'+qtId)||'[]');}catch{return[];}}
+function setItemOrder(qtId,ids){localStorage.setItem('qt_ord_'+qtId,JSON.stringify(ids));}
+function sortedSecItems(qtId,sec,isExtra){
+  const raw=isExtra
+    ?qItems.filter(i=>i.quotation_id===qtId&&i.is_extra)
+    :qItems.filter(i=>i.quotation_id===qtId&&i.section===sec&&!i.is_extra);
+  const ord=getItemOrder(qtId);
+  if(!ord.length)return raw;
+  return [...raw].sort((a,b)=>{const ai=ord.indexOf(a.id),bi=ord.indexOf(b.id);return(ai<0?99999:ai)-(bi<0?99999:bi);});
+}
+function appendItemOrder(qtId,id){
+  const ord=getItemOrder(qtId);if(!ord.includes(id))setItemOrder(qtId,[...ord,id]);
+}
+function removeItemOrder(qtId,id){setItemOrder(qtId,getItemOrder(qtId).filter(x=>x!==id));}
+function moveItem(id,dir){
+  const item=qItems.find(i=>i.id===id);if(!item)return;
+  const qtId=item.quotation_id;
+  const sec=sortedSecItems(qtId,item.section,item.is_extra);
+  const idx=sec.findIndex(i=>i.id===id);
+  const swapIdx=dir==='up'?idx-1:idx+1;
+  if(swapIdx<0||swapIdx>=sec.length)return;
+  // Build full QT order, swap the two items
+  const allQtIds=[...new Set([...getItemOrder(qtId),...qItems.filter(i=>i.quotation_id===qtId).map(i=>i.id)])];
+  const pa=allQtIds.indexOf(id),pb=allQtIds.indexOf(sec[swapIdx].id);
+  [allQtIds[pa],allQtIds[pb]]=[allQtIds[pb],allQtIds[pa]];
+  setItemOrder(qtId,allQtIds);
+  renderQT();
+}
 let currentView='internal',catFilter='all',isDark=false;
 
 const H=()=>({'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json'});
@@ -705,6 +735,8 @@ function renderQT(){
       <input class="ie mk" value="${item.markup_pct||''}" placeholder="0" onblur="applyMk('${item.id}',+this.value)"/>
       <div class="it-total-txt">${fmt(tot)}</div>
       <div class="it-actions">
+        <button class="btn ghost sm" onclick="moveItem('${item.id}','up')" title="เลื่อนขึ้น" style="padding:2px 5px;font-size:11px;color:var(--muted)">↑</button>
+        <button class="btn ghost sm" onclick="moveItem('${item.id}','down')" title="เลื่อนลง" style="padding:2px 5px;font-size:11px;color:var(--muted)">↓</button>
         <button class="btn ghost sm" onclick="openEditItem('${item.id}')" title="แก้ไข" style="padding:2px 5px">✏</button>
         <button class="btn ghost sm" onclick="addItemToCat('${item.id}')" title="บันทึกลง Catalogue" style="padding:2px 5px;font-size:11px">+C</button>
         <button class="btn ghost sm" onclick="toggleItemType('${item.id}','${isP?'item':'person'}')" title="${isP?'บุคคล':'สินค้า'}" style="font-size:11px;padding:2px 4px">${isP?'👤':'📦'}</button>
@@ -727,7 +759,7 @@ function renderQT(){
 
   const renderSec=(sec,label,cls)=>{
     const data=sec==='Pre-Production'?pre:sec==='Production'?pro:post;
-    const si=qItems.filter(i=>i.quotation_id===activeQTId&&i.section===sec&&!i.is_extra);
+    const si=sortedSecItems(activeQTId,sec,false);
     return `<div class="section-block">
       <div class="section-head ${cls}" onclick="togSec('${sec}')">
         <div class="sh-title">${label}</div>
@@ -748,7 +780,7 @@ function renderQT(){
       <span class="sh-chev open" id="chev-Extra">▼</span>
     </div>
     <div id="sec-Extra">${renderHead()}
-      ${qItems.filter(i=>i.quotation_id===activeQTId&&i.is_extra).map(renderItem).join('')}
+      ${sortedSecItems(activeQTId,'Extra',true).map(renderItem).join('')}
       <div class="add-row" onclick="openAddItem('Pre-Production',true)">+ เพิ่ม Extra</div>
     </div></div>`:'';
 
@@ -864,7 +896,11 @@ async function patchItemNum(id,f,v){
 }
 async function applyMk(id,pct){
   const item=qItems.find(i=>i.id===id);if(!item)return;
-  const price=pct>0&&item.cost>0?Math.round(item.cost*(1+pct/100)):item.price;
+  const cost=item.cost||0;
+  // pct=0 → price = cost (or 0 if cost=0)
+  // pct>0 + cost>0 → calculate from cost
+  // pct>0 + cost=0 → keep manually-set price
+  const price=(pct===0||cost>0)?Math.round(cost*(1+pct/100)):item.price;
   await dbPatch('qt_items','id=eq.'+id,{markup_pct:pct,price});
   qItems=qItems.map(i=>i.id===id?{...i,markup_pct:pct,price}:i);renderQT();
 }
@@ -884,8 +920,11 @@ async function setIO(id,type,btn){
   btn.classList.add(type==='inhouse'?'active-in':'active-out');
 }
 async function delItem(id){
+  const item=qItems.find(i=>i.id===id);
   await dbDelete('qt_items','id=eq.'+id);
-  qItems=qItems.filter(i=>i.id!==id);renderQT();
+  qItems=qItems.filter(i=>i.id!==id);
+  if(item)removeItemOrder(item.quotation_id,id);
+  renderQT();
 }
 
 /* ADD ITEM */
@@ -999,7 +1038,7 @@ async function saveAddItem(section,isExtra){
 
     is_extra:isExtra,is_cot:false,io_type:'person'
   });
-  if(item)qItems.push(item);closeModal();renderQT();
+  if(item){qItems.push(item);appendItemOrder(activeQTId,item.id);}closeModal();renderQT();
 }
 
 async function delQT(){
@@ -1385,7 +1424,7 @@ async function applyPreset(pid){
       is_cot:false,
       io_type:'person'
     });
-    if(ni)qItems.push(ni);
+    if(ni){qItems.push(ni);appendItemOrder(activeQTId,ni.id);}
   }
   showPage('qt',document.querySelector('.tnavbtn'));renderQT();
 }
