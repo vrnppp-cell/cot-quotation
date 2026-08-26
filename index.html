@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8"/>
@@ -139,9 +139,12 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .it-row.cot-row{border-left:3px solid var(--purple)}
 /* internal cols: sort | role+name | person | qty | cost | price | mk | total | actions */
 .g-int{grid-template-columns:22px 1.8fr 1fr 42px 72px 78px 44px 68px 106px}
-.sort-btns{display:flex;flex-direction:column;gap:1px;align-items:center;justify-content:center;padding-top:2px}
+.sort-btns{display:flex;flex-direction:column;gap:1px;align-items:center;justify-content:center;padding-top:2px;cursor:grab}
 .sort-btn{background:transparent;border:none;cursor:pointer;color:var(--border2);font-size:12px;padding:0 4px;line-height:1.2;border-radius:3px;transition:all .1s}
 .sort-btn:hover{background:var(--bg);color:var(--forest)}
+.it-row.dragging{opacity:.35}
+.it-row.drag-over-top{box-shadow:0 -2px 0 var(--forest)}
+.it-row.drag-over-bot{box-shadow:0 2px 0 var(--forest)}
 .g-cli{grid-template-columns:2fr 1fr 55px 85px 75px}
 .it-cell{display:flex;flex-direction:column;gap:1px}
 /* inline editable field */
@@ -474,6 +477,7 @@ async function saveCOSettings(){
   }
 }
 let activeProjId=null,activeQTId=null,activePresetId=null;
+let _dragId=null;
 
 /* ── Item Order (localStorage, no DB column needed) ── */
 function getItemOrder(qtId){try{return JSON.parse(localStorage.getItem('qt_ord_'+qtId)||'[]');}catch{return[];}}
@@ -503,6 +507,39 @@ function moveItem(id,dir){
   [allQtIds[pa],allQtIds[pb]]=[allQtIds[pb],allQtIds[pa]];
   setItemOrder(qtId,allQtIds);
   renderQT();
+}
+function itemDragStart(e,id){
+  _dragId=id;
+  e.dataTransfer.effectAllowed='move';
+  setTimeout(()=>document.querySelector(`.it-row[data-id="${id}"]`)?.classList.add('dragging'),0);
+}
+function itemDragOver(e,id){
+  if(!_dragId||_dragId===id)return;
+  e.preventDefault();e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('.it-row').forEach(r=>r.classList.remove('drag-over-top','drag-over-bot'));
+  const rect=e.currentTarget.getBoundingClientRect();
+  e.currentTarget.classList.add(e.clientY<rect.top+rect.height/2?'drag-over-top':'drag-over-bot');
+}
+function itemDrop(e,targetId){
+  e.preventDefault();
+  document.querySelectorAll('.it-row').forEach(r=>r.classList.remove('dragging','drag-over-top','drag-over-bot'));
+  if(!_dragId||_dragId===targetId){_dragId=null;return;}
+  const di=qItems.find(i=>i.id===_dragId),ti=qItems.find(i=>i.id===targetId);
+  if(!di||!ti||di.quotation_id!==ti.quotation_id){_dragId=null;return;}
+  const qtId=di.quotation_id;
+  const ids=[...new Set([...getItemOrder(qtId),...qItems.filter(i=>i.quotation_id===qtId).map(i=>i.id)])];
+  const fromIdx=ids.indexOf(_dragId);
+  if(fromIdx!==-1)ids.splice(fromIdx,1);
+  let toIdx=ids.indexOf(targetId);
+  const rect=e.currentTarget.getBoundingClientRect();
+  if(e.clientY>=rect.top+rect.height/2)toIdx++;
+  ids.splice(toIdx,0,_dragId);
+  setItemOrder(qtId,ids);
+  _dragId=null;renderQT();
+}
+function itemDragEnd(){
+  document.querySelectorAll('.it-row').forEach(r=>r.classList.remove('dragging','drag-over-top','drag-over-bot'));
+  _dragId=null;
 }
 let currentView='internal',catFilter='all',isDark=false;
 
@@ -593,7 +630,10 @@ async function loadAll(){
     await loadCORemote();
     setSyncDot(true);
     renderSidebar();renderPresetSidebar();
-    if(activeQTId)renderQT();
+    if(activeQTId){
+      const focused=document.activeElement;
+      if(!focused||!focused.classList.contains('ie'))renderQT();
+    }
     if(activePresetId)renderPreset();
     renderCat();
   }catch(e){setSyncDot(false);}
@@ -726,8 +766,8 @@ function renderQT(){
     const tot=(item.price||0)*(item.qty||1);
     const isOwn=item.is_cot;
     const isP=(item.io_type||'person')==='person';
-    if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}">
-      <div class="sort-btns">
+    if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}" data-id="${item.id}" draggable="true" ondragstart="itemDragStart(event,'${item.id}')" ondragover="itemDragOver(event,'${item.id}')" ondrop="itemDrop(event,'${item.id}')" ondragend="itemDragEnd()">
+      <div class="sort-btns" title="ลากเพื่อเรียงลำดับ">
         <button class="sort-btn" onclick="moveItem('${item.id}','up')" title="เลื่อนขึ้น">▲</button>
         <button class="sort-btn" onclick="moveItem('${item.id}','down')" title="เลื่อนลง">▼</button>
       </div>
@@ -1607,8 +1647,8 @@ function exportPDF(){
 
   const secData=SECS.map(sec=>{
     const si=sec.key==='Extra'
-      ?allItems.filter(i=>i.is_extra)
-      :allItems.filter(i=>i.section===sec.key&&!i.is_extra);
+      ?sortedSecItems(activeQTId,'Extra',true)
+      :sortedSecItems(activeQTId,sec.key,false);
     const total=si.reduce((a,i)=>a+(i.price||0)*(i.qty||1),0);
     return{...sec,items:si,total};
   }).filter(s=>s.items.length>0);
