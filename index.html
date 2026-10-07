@@ -502,6 +502,24 @@ let _aiParsed=null;
 let _aiNewCosts={};
 let _aiSaveCat={};
 
+/* ── AI field parser: รองรับทั้ง format ใหม่ (name+model+detail) และเก่า ([PHOTO]/[VIDEO] prefix) ── */
+function parseAIItemFields(item){
+  const rawName=item.name||'';
+  const rawDetail=item.detail||'';
+  const rawModel=item.model||'';
+  const tagPat=/^\[(?:PHOTO|VIDEO|EDITING|AUDIO|MOTION|GRAPHIC|BTS)[^\]]*\]\s*/i;
+  const nameHasTag=tagPat.test(rawName);
+  const isOldFmt=nameHasTag||(!rawName&&rawDetail.length>0);
+  if(isOldFmt){
+    let src=(nameHasTag?rawName:rawDetail).replace(tagPat,'').trim();
+    let shortName;
+    const ci=src.indexOf(':');
+    shortName=(ci>=3&&ci<=60)?src.substring(0,ci).trim():src.split(/\s+/).slice(0,5).join(' ');
+    return{shortName,model:rawModel,detailText:src,needsCheck:true};
+  }
+  return{shortName:rawName,model:rawModel,detailText:rawDetail,needsCheck:false};
+}
+
 /* ── Item Order (localStorage, no DB column needed) ── */
 function getItemOrder(qtId){try{return JSON.parse(localStorage.getItem('qt_ord_'+qtId)||'[]');}catch{return[];}}
 function setItemOrder(qtId,ids){localStorage.setItem('qt_ord_'+qtId,JSON.stringify(ids));}
@@ -1948,6 +1966,14 @@ function showAIPreview(data){
     if(item.code==='NEW'){
       if(_aiNewCosts[idx]===undefined)_aiNewCosts[idx]=0;
       if(_aiSaveCat[idx]===undefined)_aiSaveCat[idx]=true;
+      // ครั้งแรก: parse ชื่อ (รองรับ format เก่า/ใหม่)
+      if(item._needsCheck===undefined){
+        const p=parseAIItemFields(item);
+        item.name=p.shortName;
+        item.model=p.model;
+        item.detail=p.detailText;
+        item._needsCheck=p.needsCheck;
+      }
     }
   });
 
@@ -1960,13 +1986,18 @@ function showAIPreview(data){
     if(isNew){
       const sim=_findSimilarCat(item.name);
       const simWarn=sim?`<div class="ai-sim-warn">มีรายการคล้ายกัน: <strong>${esc(sim.item_role)}</strong> (${esc(sim.code)}) <button class="btn ghost sm" onclick="aiUseExisting(${idx},'${sim.code}')">ใช้รายการนี้แทน</button></div>`:'';
-      const partOpts=['Pre-Production','Production','Post-Production'].map(p=>`<option value="${p}" ${(item.section===p||(!['Extra'].includes(item.section)&&p===item.section))?'selected':''}>${p.replace('Production','Pro').replace('Pre-','Pre-').replace('Post-','Post-')}</option>`).join('');
+      const partOpts=['Pre-Production','Production','Post-Production'].map(p=>`<option value="${p}" ${item.section===p?'selected':''}>${p.replace('Pre-Production','Pre-Pro').replace('Post-Production','Post-Pro')}</option>`).join('');
       const saveCk=_aiSaveCat[idx]!==false;
+      const checkBadge=item._needsCheck?`<span style="font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;background:#FEF9C3;color:#854D0E;margin-left:4px">ตรวจชื่อ</span>`:'';
       return `<tr class="ai-new" data-idx="${idx}">
         <td><span class="ai-new-badge">NEW</span></td>
         <td>
-          <div style="font-weight:600">${esc(item.name||'')}</div>
-          <div style="font-size:11px;color:var(--muted)">${esc(item.unit||'')} ${esc(item.detail||'')}</div>
+          <div style="display:flex;align-items:center;gap:2px;margin-bottom:2px">
+            <input class="ai-inp" value="${esc(item.name||'')}" placeholder="ตำแหน่ง/ชนิด *" style="flex:1" oninput="_aiParsed.items[${idx}].name=this.value"/>
+            ${checkBadge}
+          </div>
+          <input class="ai-inp" value="${esc(item.model||'')}" placeholder="รุ่น/Model (ถ้ามี)" style="width:100%;font-size:11px;margin-bottom:2px" oninput="_aiParsed.items[${idx}].model=this.value"/>
+          ${item.detail?`<div style="font-size:11px;color:var(--muted);line-height:1.3">${esc(item.detail)}</div>`:''}
           ${simWarn}
           <label style="font-size:11px;display:flex;align-items:center;gap:4px;margin-top:3px;cursor:pointer">
             <input type="checkbox" ${saveCk?'checked':''} onchange="_aiSaveCat[${idx}]=this.checked"/> บันทึกลง Catalogue ด้วย
@@ -2041,7 +2072,11 @@ function showAIPreview(data){
 function aiConvertToNew(idx){
   const item=_aiParsed.items[idx];
   item.code='NEW';
-  item.name=item.name||item.item_role||'';
+  const p=parseAIItemFields(item);
+  item.name=p.shortName;
+  item.model=p.model;
+  item.detail=p.detailText;
+  item._needsCheck=p.needsCheck;
   _aiNewCosts[idx]=0;
   _aiSaveCat[idx]=true;
   showAIPreview(_aiParsed);
@@ -2050,7 +2085,11 @@ function aiConvertAllMissToNew(){
   _aiParsed.items.forEach((item,idx)=>{
     if(item.code!=='NEW'&&!catalogue.find(c=>c.code===item.code)){
       item.code='NEW';
-      item.name=item.name||item.item_role||item.detail||'';
+      const p=parseAIItemFields(item);
+      item.name=p.shortName;
+      item.model=p.model;
+      item.detail=p.detailText;
+      item._needsCheck=p.needsCheck;
       _aiNewCosts[idx]=0;
       _aiSaveCat[idx]=true;
     }
@@ -2099,24 +2138,24 @@ async function createQTFromAI(data){
     let itemRole,itemName,itemPerson,itemUnit,cost,price,detail;
 
     if(isNew){
-      // รายการใหม่
       const rawCost=_aiNewCosts[idx]||0;
       cost=rawCost;
       price=cost>0?Math.round(cost*(1+mk/100)):0;
-      itemRole=item.name||'';
-      itemName='';
-      itemPerson='';
+      itemRole=item.name||'';           // JSON name → item_role (ตำแหน่ง/ชนิด)
+      itemPerson=item.model||'';        // JSON model → item_person (รุ่น/ชื่อ)
+      itemName=item.detail||'';         // JSON detail → name (คำอธิบายเพิ่มเติม)
       itemUnit=item.unit||'';
-      const detailParts=[item.detail,item.reason?'[AI: '+item.reason+']':'',cost===0?'__NEEDS_PRICE__':''].filter(Boolean);
+      const detailParts=[item.reason?'[AI: '+item.reason+']':'',cost===0?'__NEEDS_PRICE__':''].filter(Boolean);
       detail=detailParts.join(' — ');
 
-      // บันทึกลง Catalogue ถ้าติ๊ก
+      // บันทึกลง Catalogue: เฉพาะชื่อสั้น + รุ่น ไม่บันทึก detail ที่มีวันที่/รายละเอียด
       if(_aiSaveCat[idx]!==false&&itemRole){
+        const catDisplayName=itemRole+(itemPerson?' — '+itemPerson:'');
         const newCatEntry=await dbPost('qt_catalogue',{
           code:genCatCode(),
-          name:itemRole,
+          name:catDisplayName,
           item_role:itemRole,
-          item_person:'',
+          item_person:itemPerson,
           part:['Extra'].includes(item.section)?'Pre-Production':item.section,
           unit:itemUnit,
           cost_min:cost,cost_max:cost,
@@ -2127,11 +2166,11 @@ async function createQTFromAI(data){
     }else{
       cost=cat.cost_min||0;
       price=Math.round(cost*(1+mk/100));
-      itemRole=cat.item_role||'';
-      itemName=cat.name||'';
-      itemPerson=cat.item_person||'';
+      itemRole=cat.item_role||'';       // ใช้จาก Catalogue
+      itemPerson=cat.item_person||'';   // ใช้จาก Catalogue
+      itemName=item.detail||'';         // JSON detail → name (คำอธิบายเพิ่มเติม)
       itemUnit=cat.unit||'';
-      detail=[item.detail,item.reason?'[AI: '+item.reason+']':''].filter(Boolean).join(' — ');
+      detail=item.reason?'[AI: '+item.reason+']':'';
     }
 
     const ni=await dbPost('qt_items',{
