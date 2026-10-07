@@ -194,8 +194,18 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .cat-search{padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;font-family:'Sarabun',sans-serif;background:var(--card);color:var(--text);outline:none;width:180px}
 .cat-search:focus{border-color:var(--forest)}
 .cat-table{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh)}
-.cat-head{display:grid;grid-template-columns:70px 1.8fr 110px 60px 72px 72px 1fr 72px;gap:4px;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
-.cat-row{display:grid;grid-template-columns:70px 1.8fr 110px 60px 72px 72px 1fr 72px;gap:4px;padding:5px 10px;border-bottom:1px solid var(--border);align-items:start;font-size:12px}
+.cat-head{display:grid;grid-template-columns:55px 70px 1.8fr 110px 60px 72px 72px 1fr 72px;gap:4px;padding:6px 10px;background:var(--card2);border-bottom:1px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
+.cat-row{display:grid;grid-template-columns:55px 70px 1.8fr 110px 60px 72px 72px 1fr 72px;gap:4px;padding:5px 10px;border-bottom:1px solid var(--border);align-items:start;font-size:12px}
+.modal.wide{max-width:940px;width:96vw}
+.ai-prev-tbl{width:100%;border-collapse:collapse;font-size:12px;margin:6px 0}
+.ai-prev-tbl th{background:var(--card2);padding:5px 8px;text-align:left;border-bottom:2px solid var(--border);font-size:10px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px}
+.ai-prev-tbl td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.ai-prev-tbl tr.ai-miss td{background:#FEF2F2;color:#B91C1C}
+.ai-prev-tbl tr.ai-low td:first-child{border-left:3px solid var(--amber)}
+.ai-badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;background:var(--amber-bg);color:var(--amber)}
+.ai-miss-badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;background:#FEE2E2;color:#B91C1C}
+.ai-note-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 12px;font-size:12px;line-height:1.6;margin-bottom:8px}
+.ai-note-box h4{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px;margin:0 0 6px}
 .cat-row:last-child{border-bottom:none}
 .cat-row:hover{background:var(--bg)}
 .part-badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
@@ -286,6 +296,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
       <button class="theme-toggle" onclick="openCOSettings()" title="ข้อมูลบริษัท" style="font-size:15px">⚙</button>
       <button class="theme-toggle" onclick="toggleTheme()" title="สลับ Dark/Light">🌙</button>
       <span class="sdot" id="sdot"></span>
+      <button class="topbtn" onclick="openAIImport()" title="นำเข้าใบเสนอราคาที่ Claude วิเคราะห์มา" style="background:var(--forest);color:var(--gold)">✨ AI</button>
       <button class="topbtn gold" onclick="createNewQT()">+ ใบใหม่</button>
     </div>
   </div>
@@ -350,6 +361,7 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
         </div>
         <input class="cat-search" id="cat-q" placeholder="ค้นหา..." oninput="renderCat()"/>
         <button class="btn" style="margin-left:auto" onclick="importDefaultCatalogue()" title="นำเข้า 119 รายการ Default จาก COT Template">📥 Import Default</button>
+        <button class="btn gold" onclick="exportCatalogueForAI()" title="ส่งออกไฟล์ Catalogue สำหรับให้ AI อ่าน">📤 ส่งออกสำหรับ AI</button>
         <button class="btn primary" onclick="openAddCat()">+ เพิ่มรายการ</button>
       </div>
       <div id="cat-wrap"></div>
@@ -478,6 +490,8 @@ async function saveCOSettings(){
 }
 let activeProjId=null,activeQTId=null,activePresetId=null;
 let _dragId=null;
+let aiImports=[];
+let _aiRaw='';
 
 /* ── Item Order (localStorage, no DB column needed) ── */
 function getItemOrder(qtId){try{return JSON.parse(localStorage.getItem('qt_ord_'+qtId)||'[]');}catch{return[];}}
@@ -618,15 +632,17 @@ async function checkTableCols(table){
 
 async function loadAll(){
   try{
-    const [pr,qt,it,cat,ps,psi]=await Promise.all([
+    const [pr,qt,it,cat,ps,psi,ai]=await Promise.all([
       safeGet('qt_projects?select=*&order=created_at.asc'),
       safeGet('qt_quotations?select=*&order=created_at.asc'),
       safeGet('qt_items?select=*&order=created_at.asc'),
       safeGet('qt_catalogue?select=*&order=name.asc'),
       safeGet('qt_presets?select=*&order=name.asc'),
-      safeGet('qt_preset_items?select=*&order=created_at.asc')
+      safeGet('qt_preset_items?select=*&order=created_at.asc'),
+      safeGet('qt_ai_imports?select=id,quotation_id,parsed_json,created_at&order=created_at.desc')
     ]);
     projects=pr;quotations=qt;qItems=it;catalogue=cat;presets=ps;presetItems=psi;
+    if(ai)aiImports=ai;
     await loadCORemote();
     setSyncDot(true);
     renderSidebar();renderPresetSidebar();
@@ -896,6 +912,7 @@ function renderQT(){
       <div class="stotal-label">ยอดชำระ</div><div class="stotal-val">฿ ${fmt(beforeVat+vat-wht)}</div>
     </div>
     ${qt.remark?`<div style="font-size:12px;color:var(--muted);border-top:1px solid var(--border);padding-top:.75rem;margin-top:.25rem;white-space:pre-wrap">${qt.remark}</div>`:''}
+    ${isInt?(()=>{const ai=aiImports.find(a=>a.quotation_id===qt.id);if(!ai)return'';const d=ai.parsed_json||{};const ex=d.suggested_extra_items||[];const as=d.assumptions||[];if(!ex.length&&!as.length)return'';return`<details style="border-top:1px solid var(--border);margin-top:.5rem;padding-top:.5rem" data-noprint><summary style="cursor:pointer;font-size:11px;font-weight:600;color:var(--hint);letter-spacing:.3px;text-transform:uppercase;user-select:none">✨ AI Import Info</summary><div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${as.length?`<div class="ai-note-box"><h4>📌 Assumptions</h4>${as.map(a=>`<div style="font-size:12px">• ${esc(a)}</div>`).join('')}</div>`:''}${ex.length?`<div class="ai-note-box"><h4>💡 รายการที่ AI แนะนำ (ไม่ได้นำเข้า)</h4>${ex.map(x=>`<div style="font-size:12px">• <strong>${esc(x.name)}</strong>${x.why?` — <span style="color:var(--muted)">${esc(x.why)}</span>`:''}</div>`).join('')}</div>`:''}</div></details>`})():''}
     <div class="sum-footer" data-noprint>
       <div class="sum-actions-left">
         <button class="btn" onclick="cloneQT()">📋 Clone</button>
@@ -1172,9 +1189,10 @@ function renderCat(){
   if(!list.length){wrap.innerHTML='<div class="empty">ไม่มีรายการ</div>';return;}
   wrap.innerHTML=`<div class="cat-table">
     <div class="cat-head">
-      <div>หมวด</div><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div></div>
+      <div>รหัส</div><div>หมวด</div><div>ตำแหน่ง / ชนิด</div><div>ชื่อ / รุ่น</div><div>Unit</div><div style="text-align:right">Min</div><div style="text-align:right">Max</div><div>หมายเหตุ</div><div></div>
     </div>
     ${list.map(c=>`<div class="cat-row">
+      <div style="padding-top:5px;font-size:11px;font-weight:700;color:var(--forest);letter-spacing:.3px">${esc(c.code||'—')}</div>
       <div style="padding-top:4px"><span class="part-badge ${c.part==='Pre-Production'?'pb-pre':c.part==='Production'?'pb-pro':'pb-post'}">${c.part==='Pre-Production'?'Pre':c.part==='Production'?'Pro':'Post'}</span></div>
       <div style="display:flex;flex-direction:column;gap:1px">
         <input class="ci" value="${esc(c.item_role)}" onblur="patchCatTxt('${c.id}','item_role',this.value)" placeholder="ตำแหน่ง / ชนิด *" style="font-weight:600"/>
@@ -1229,8 +1247,8 @@ async function patchCatTxt(id,f,v){await dbPatch('qt_catalogue','id=eq.'+id,{[f]
 async function delCat(id){if(!confirm('ลบ?'))return;await dbDelete('qt_catalogue','id=eq.'+id);catalogue=catalogue.filter(c=>c.id!==id);renderCat();}
 async function cloneCat(id){
   const c=catalogue.find(x=>x.id===id);if(!c)return;
-  const {id:_,created_at:__,...d}=c;
-  const nc=await dbPost('qt_catalogue',{...d,name:d.name+' (copy)'});
+  const {id:_,created_at:__,code:___,...d}=c;
+  const nc=await dbPost('qt_catalogue',{...d,code:genCatCode(),name:d.name+' (copy)'});
   if(nc)catalogue.push(nc);renderCat();
 }
 function openAddCat(){
@@ -1257,11 +1275,16 @@ function openAddCat(){
     <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="doAddCat()">บันทึก</button></div>`);
   setTimeout(()=>{document.getElementById('cr')?.focus();setCatType('person');},100);
 }
+function genCatCode(){
+  const nums=catalogue.map(c=>{const m=(c.code||'').match(/^C(\d+)$/);return m?+m[1]:0;});
+  return 'C'+String((Math.max(0,...nums)+1)).padStart(3,'0');
+}
 async function doAddCat(){
   const role=document.getElementById('cr').value.trim();
   const name=document.getElementById('cn').value.trim();
   if(!role)return alert('กรุณาระบุตำแหน่ง/ชนิด');
   const c=await dbPost('qt_catalogue',{
+    code:genCatCode(),
     name:role+(name?' — '+name:''),
     item_role:role,
     item_person:document.getElementById('cp2')?.value||'',
@@ -1839,8 +1862,161 @@ ${qt.remark?`<div class="rmk"><strong>หมายเหตุ: </strong>${qt.re
   w.document.write(html);w.document.close();
   setTimeout(()=>{w.focus();w.print();},900);
 }
-function closeModal(){document.getElementById('moverlay').classList.remove('open');}
-function openModal(html){document.getElementById('modal').innerHTML=html;document.getElementById('moverlay').classList.add('open');}
+function closeModal(){document.getElementById('moverlay').classList.remove('open');document.getElementById('modal').classList.remove('wide');}
+function openModal(html,wide){const m=document.getElementById('modal');m.innerHTML=html;if(wide)m.classList.add('wide');else m.classList.remove('wide');document.getElementById('moverlay').classList.add('open');}
+
+/* ── Export Catalogue for AI ── */
+function exportCatalogueForAI(){
+  const partName={Pre:'Pre-Production',Pro:'Production','Post':'Post-Production'};
+  const lines=['| รหัส | หมวด | ตำแหน่ง/ชนิด | ชื่อ/รุ่น | Unit | หมายเหตุ |','|------|------|--------------|----------|------|----------|'];
+  catalogue.forEach(c=>{
+    lines.push(`| ${c.code||''} | ${c.part||''} | ${c.item_role||''} | ${c.item_person||''} | ${c.unit||''} | ${c.notes||''} |`);
+  });
+  const date=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  const content=`# COT Catalogue — ส่งออกเมื่อ ${date}\n\n${lines.join('\n')}\n`;
+  const a=document.createElement('a');
+  a.href='data:text/markdown;charset=utf-8,'+encodeURIComponent(content);
+  a.download='COT_Catalogue_for_AI.md';a.click();
+}
+
+/* ── AI Import ── */
+function openAIImport(){
+  const projOpts=projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  openModal(`<h2>✨ นำเข้าใบเสนอราคาจาก AI</h2>
+    <div class="mf"><label>วางข้อความจาก Claude (วางทั้งข้อความได้ ระบบหา JSON เอง)</label>
+      <textarea id="ai-paste" style="width:100%;height:180px;font-family:monospace;font-size:11px;padding:8px;border:1.5px solid var(--border);border-radius:var(--rsm);background:var(--bg);color:var(--text);resize:vertical;outline:none" placeholder='วาง JSON หรือข้อความจาก Claude ที่นี่เลยครับ...' oninput="_aiRaw=this.value"></textarea>
+    </div>
+    <div id="ai-parse-err" style="color:var(--red);font-size:12px;min-height:20px;margin-bottom:4px"></div>
+    <div class="mfooter"><button class="btn" onclick="closeModal()">ยกเลิก</button><button class="btn primary" onclick="validateAIJson()">ตรวจสอบ →</button></div>`,true);
+}
+
+function parseAIJson(text){
+  const cleaned=text.replace(/```json/g,'').replace(/```/g,'');
+  const m=cleaned.match(/\{[\s\S]*"cot_import_version"[\s\S]*\}/);
+  if(!m)return null;
+  try{return JSON.parse(m[0]);}catch{return null;}
+}
+
+function validateAIJson(){
+  const text=document.getElementById('ai-paste').value;
+  _aiRaw=text;
+  const errEl=document.getElementById('ai-parse-err');
+  if(!text.trim()){errEl.textContent='กรุณาวางข้อความจาก Claude ก่อนนะครับ';return;}
+  const data=parseAIJson(text);
+  if(!data){errEl.textContent='ไม่พบข้อมูลใบเสนอราคา กรุณาคัดลอกโค้ดบล็อก JSON จาก Claude มาให้ครบครับ';return;}
+  if(!data.cot_import_version){errEl.textContent='JSON ไม่มีฟิลด์ cot_import_version — ตรวจสอบ prompt ที่ใช้ถาม Claude ด้วยครับ';return;}
+  if(!Array.isArray(data.items)||!data.items.length){errEl.textContent='ไม่มีรายการ items ในข้อมูล';return;}
+  showAIPreview(data);
+}
+
+function showAIPreview(data){
+  const rows=data.items.map(item=>{
+    const cat=catalogue.find(c=>c.code===item.code);
+    const miss=!cat;
+    const low=!miss&&item.confidence==='low';
+    const badge=miss?`<span class="ai-miss-badge">ไม่พบใน Catalogue</span>`:low?`<span class="ai-badge">⚠ ควรตรวจ</span>`:'';
+    const catName=cat?`<strong>${esc(cat.item_role)}</strong>${cat.item_person?` <span style="color:var(--muted)">· ${esc(cat.item_person)}</span>`:''}`:'-';
+    const tr_cls=miss?'ai-miss':low?'ai-low':'';
+    return `<tr class="${tr_cls}">
+      <td style="font-weight:700;color:var(--forest)">${esc(item.code)}</td>
+      <td>${catName}${badge?'<br>'+badge:''}</td>
+      <td>${esc(item.section)}</td>
+      <td style="text-align:center">${item.qty||1}</td>
+      <td style="color:var(--muted);font-size:11px">${esc(item.detail||'')}</td>
+    </tr>`;
+  }).join('');
+
+  const extraBox=data.suggested_extra_items?.length?`<div class="ai-note-box">
+    <h4>💡 AI แนะนำเพิ่ม (ไม่มีใน Catalogue)</h4>
+    ${data.suggested_extra_items.map(x=>`<div style="margin-bottom:4px">• <strong>${esc(x.name)}</strong>${x.why?` — <span style="color:var(--muted)">${esc(x.why)}</span>`:''}</div>`).join('')}
+  </div>`:'';
+
+  const assumBox=data.assumptions?.length?`<div class="ai-note-box">
+    <h4>📌 Assumptions</h4>
+    ${data.assumptions.map(a=>`<div>• ${esc(a)}</div>`).join('')}
+  </div>`:'';
+
+  const delivBox=data.deliverables?.length?`<div class="ai-note-box">
+    <h4>🎬 Deliverables</h4>
+    ${data.deliverables.map(d=>`<div>• ${esc(d)}</div>`).join('')}
+  </div>`:'';
+
+  const missCount=data.items.filter(i=>!catalogue.find(c=>c.code===i.code)).length;
+  const warnBanner=missCount?`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--rsm);padding:8px 12px;font-size:12px;color:#B91C1C;margin-bottom:8px">⚠ พบ ${missCount} รายการที่ไม่มีรหัสตรงกันใน Catalogue — แถวสีแดงจะไม่ถูกนำเข้า</div>`:'';
+
+  const projOpts=['<option value="">— สร้างโปรเจคใหม่จากชื่อใน JSON —</option>',...projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`)].join('');
+
+  openModal(`<h2>✨ ตรวจสอบก่อนสร้างใบเสนอราคา</h2>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;margin-bottom:10px">
+      <div><span style="color:var(--hint)">โปรเจค:</span> <strong>${esc(data.project_name||'')}</strong></div>
+      <div><span style="color:var(--hint)">ลูกค้า:</span> <strong>${esc(data.client_name||'')}</strong></div>
+      <div><span style="color:var(--hint)">Package:</span> <strong>${esc(data.package_name||'')}</strong></div>
+    </div>
+    ${warnBanner}
+    <div style="overflow-x:auto;max-height:280px;overflow-y:auto;margin-bottom:10px">
+      <table class="ai-prev-tbl">
+        <thead><tr><th>รหัส</th><th>รายการ (จาก Catalogue)</th><th>Section</th><th>Qty</th><th>รายละเอียด</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${extraBox}${assumBox}${delivBox}
+    <div class="mf" style="margin-top:8px"><label>บันทึกใต้โปรเจค</label>
+      <select id="ai-proj-sel" style="width:100%;padding:6px 8px;border:1.5px solid var(--border);border-radius:var(--rsm);font-size:12px;background:var(--card);color:var(--text)">${projOpts}</select>
+    </div>
+    <div class="mfooter">
+      <button class="btn" onclick="openAIImport()">← แก้ไข</button>
+      <button class="btn primary" id="ai-confirm-btn">สร้างใบเสนอราคา</button>
+    </div>`,true);
+  setTimeout(()=>{const btn=document.getElementById('ai-confirm-btn');if(btn)btn.onclick=()=>createQTFromAI(data);},50);
+}
+
+async function createQTFromAI(data){
+  if(!data||typeof data!=='object')return alert('ข้อมูล JSON ผิดพลาด');
+  const selProjId=document.getElementById('ai-proj-sel')?.value||'';
+
+  let pid=selProjId;
+  if(!pid){
+    const pname=(data.project_name||'โปรเจคจาก AI').trim();
+    const proj=await dbPost('qt_projects',{name:pname});
+    if(!proj)return alert('ไม่สามารถสร้างโปรเจคได้');
+    projects.push(proj);pid=proj.id;activeProjId=pid;renderSidebar();
+  }else{activeProjId=pid;}
+
+  const mk=15,mgmt=10;
+  const hasExtra=data.items.some(i=>i.section==='Extra');
+  const vNum=quotations.filter(q=>q.project_id===pid).length+1;
+  const remark=[data.remark||'',...(data.deliverables||[]).map(d=>'• '+d)].filter(Boolean).join('\n');
+
+  const qt=await dbPost('qt_quotations',{
+    project_id:pid,version_name:'v'+vNum,qt_number:genNo(),qt_date:today(),
+    client_name:data.client_name||'',markup_default:mk,mgmt_fee_pct:mgmt,
+    vat_enabled:true,wht_enabled:true,show_extra:hasExtra,
+    status:'draft',version_note:'AI draft',remark:remark
+  });
+  if(!qt)return alert('ไม่สามารถสร้างใบเสนอราคาได้');
+  quotations.push(qt);activeQTId=qt.id;
+
+  const validItems=data.items.filter(i=>catalogue.find(c=>c.code===i.code));
+  for(const item of validItems){
+    const c=catalogue.find(x=>x.code===item.code);
+    const cost=c.cost_min||0;
+    const price=Math.round(cost*(1+mk/100));
+    const detail=[item.detail,item.reason?'[AI: '+item.reason+']':''].filter(Boolean).join(' — ');
+    const ni=await dbPost('qt_items',{
+      quotation_id:qt.id,section:item.section,
+      item_role:c.item_role||'',name:c.name||'',item_person:c.item_person||'',
+      unit:c.unit||'',qty:item.qty||1,cost,price,markup_pct:mk,detail,
+      is_extra:item.section==='Extra',io_type:'person'
+    });
+    if(ni)qItems.push(ni);
+  }
+
+  await dbPost('qt_ai_imports',{quotation_id:qt.id,raw_text:_aiRaw,parsed_json:data});
+
+  closeModal();
+  renderSidebar();renderQT();
+  showPage('qt',null);
+}
 
 /* CALCULATOR */
 let _cVal='0',_cOp=null,_cPrev=null,_cNew=true;
@@ -2006,7 +2182,16 @@ async function importDefaultCatalogue(){
     });
     if(!r.ok){const e=await r.text();alert('นำเข้าไม่สำเร็จ: '+e.substring(0,200));return;}
     const inserted=await r.json();
-    if(Array.isArray(inserted))inserted.forEach(c=>catalogue.push(c));
+    if(Array.isArray(inserted)){
+      inserted.forEach(c=>catalogue.push(c));
+      // assign code to items that don't have one yet
+      const needCode=inserted.filter(c=>!c.code);
+      for(const c of needCode){
+        const code=genCatCode();
+        await dbPatch('qt_catalogue','id=eq.'+c.id,{code});
+        catalogue=catalogue.map(x=>x.id===c.id?{...x,code}:x);
+      }
+    }
     renderCat();
     alert('นำเข้าสำเร็จ '+(Array.isArray(inserted)?inserted.length:0)+' รายการ ✓');
   }catch(e){alert('Error: '+e.message);}
