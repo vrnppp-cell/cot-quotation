@@ -2003,9 +2003,10 @@ function showAIPreview(data){
   const missCount=data.items.filter((i,idx)=>i.code!=='NEW'&&!catalogue.find(c=>c.code===i.code)).length;
   const newCount=data.items.filter(i=>i.code==='NEW').length;
   const warnParts=[];
-  if(missCount)warnParts.push(`${missCount} รายการไม่พบ code — จะไม่นำเข้า (กด "แปลงเป็นรายการใหม่" เพื่อเพิ่มเองได้)`);
+  const missBtn=missCount?`<button class="btn sm" style="margin-left:8px;font-size:11px;padding:2px 8px;background:#854D0E;color:#fff;border:none;border-radius:3px;cursor:pointer" onclick="aiConvertAllMissToNew()">แปลงทั้งหมดเป็นรายการใหม่ (${missCount})</button>`:'';
+  if(missCount)warnParts.push(`${missCount} รายการไม่พบ code — จะไม่นำเข้า${missBtn}`);
   if(newCount)warnParts.push(`${newCount} รายการใหม่ — กรอกต้นทุนในตาราง (หรือปล่อยว่างไว้ก่อนได้)`);
-  const warnBanner=warnParts.length?`<div style="background:#FEF9C3;border:1px solid #FDE68A;border-radius:var(--rsm);padding:8px 12px;font-size:12px;color:#854D0E;margin-bottom:8px">${warnParts.join(' · ')}</div>`:'';
+  const warnBanner=warnParts.length?`<div style="background:#FEF9C3;border:1px solid #FDE68A;border-radius:var(--rsm);padding:8px 12px;font-size:12px;color:#854D0E;margin-bottom:8px;display:flex;align-items:center;flex-wrap:wrap;gap:6px">${warnParts.join('<span style="color:#D97706"> · </span>')}</div>`:'';
 
   const extraBox=data.suggested_extra_items?.length?`<div class="ai-note-box"><h4>💡 AI แนะนำเพิ่ม (ไม่มีใน Catalogue)</h4>${data.suggested_extra_items.map(x=>`<div style="margin-bottom:4px">• <strong>${esc(x.name)}</strong>${x.why?` — <span style="color:var(--muted)">${esc(x.why)}</span>`:''}</div>`).join('')}</div>`:'';
   const assumBox=data.assumptions?.length?`<div class="ai-note-box"><h4>📌 Assumptions</h4>${data.assumptions.map(a=>`<div>• ${esc(a)}</div>`).join('')}</div>`:'';
@@ -2043,6 +2044,17 @@ function aiConvertToNew(idx){
   item.name=item.name||item.item_role||'';
   _aiNewCosts[idx]=0;
   _aiSaveCat[idx]=true;
+  showAIPreview(_aiParsed);
+}
+function aiConvertAllMissToNew(){
+  _aiParsed.items.forEach((item,idx)=>{
+    if(item.code!=='NEW'&&!catalogue.find(c=>c.code===item.code)){
+      item.code='NEW';
+      item.name=item.name||item.item_role||item.detail||'';
+      _aiNewCosts[idx]=0;
+      _aiSaveCat[idx]=true;
+    }
+  });
   showAIPreview(_aiParsed);
 }
 function aiUseExisting(idx,code){
