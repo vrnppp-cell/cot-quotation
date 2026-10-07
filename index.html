@@ -206,6 +206,12 @@ body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);fon
 .ai-miss-badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;background:#FEE2E2;color:#B91C1C}
 .ai-note-box{background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 12px;font-size:12px;line-height:1.6;margin-bottom:8px}
 .ai-note-box h4{font-size:11px;font-weight:600;color:var(--hint);text-transform:uppercase;letter-spacing:.3px;margin:0 0 6px}
+.ai-prev-tbl tr.ai-new td{background:#FEFCE8}
+.ai-new-badge{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600;background:#FEF08A;color:#854D0E}
+.ai-no-price{font-size:10px;padding:1px 6px;border-radius:3px;font-weight:600;background:#FEF2F2;color:#B91C1C;display:inline-block;margin-top:1px}
+.ai-sim-warn{font-size:11px;color:var(--amber);background:var(--amber-bg);border-radius:3px;padding:3px 7px;margin-top:3px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ai-inp{width:100%;padding:3px 6px;border:1px solid var(--border);border-radius:3px;font-size:11px;background:var(--card);color:var(--text);font-family:'Sarabun',sans-serif}
+.ai-inp:focus{outline:none;border-color:var(--forest)}
 .cat-row:last-child{border-bottom:none}
 .cat-row:hover{background:var(--bg)}
 .part-badge{font-size:10px;padding:2px 7px;border-radius:3px;font-weight:500}
@@ -492,6 +498,9 @@ let activeProjId=null,activeQTId=null,activePresetId=null;
 let _dragId=null;
 let aiImports=[];
 let _aiRaw='';
+let _aiParsed=null;
+let _aiNewCosts={};
+let _aiSaveCat={};
 
 /* ── Item Order (localStorage, no DB column needed) ── */
 function getItemOrder(qtId){try{return JSON.parse(localStorage.getItem('qt_ord_'+qtId)||'[]');}catch{return[];}}
@@ -782,6 +791,7 @@ function renderQT(){
     const tot=(item.price||0)*(item.qty||1);
     const isOwn=item.is_cot;
     const isP=(item.io_type||'person')==='person';
+    const needsPrice=!item.cost&&item.detail?.includes('__NEEDS_PRICE__');
     if(isInt) return `<div class="it-row g-int${isOwn?' cot-row':''}" data-id="${item.id}" draggable="true" ondragstart="itemDragStart(event,'${item.id}')" ondragover="itemDragOver(event,'${item.id}')" ondrop="itemDrop(event,'${item.id}')" ondragend="itemDragEnd()">
       <div class="sort-btns" title="ลากเพื่อเรียงลำดับ">
         <button class="sort-btn" onclick="moveItem('${item.id}','up')" title="เลื่อนขึ้น">▲</button>
@@ -789,6 +799,7 @@ function renderQT(){
       </div>
       <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
         <input class="ie" value="${esc(item.item_role)}" placeholder="${isP?'ตำแหน่ง *':'ชนิด *'}" onblur="patchItemLocal('${item.id}','item_role',this.value)" style="font-weight:600;font-size:12px"/>
+        ${needsPrice?'<span class="ai-no-price">⚠ ยังไม่ใส่ราคา</span>':''}
         <input class="ie sm-txt" value="${esc(item.name)}" placeholder="คำอธิบายเพิ่มเติม..." onblur="patchItemLocal('${item.id}','name',this.value)"/>
       </div>
       <input class="ie" value="${esc(item.item_person)}" placeholder="${isP?'ชื่อ':'รุ่น/Model'}" onblur="patchItemLocal('${item.id}','item_person',this.value)" style="font-size:12px"/>
@@ -952,8 +963,15 @@ async function patchItemLocal(id,f,v){
 }
 async function patchItemNum(id,f,v){
   const n=Number(v)||0;
-  await dbPatch('qt_items','id=eq.'+id,{[f]:n});
-  qItems=qItems.map(i=>i.id===id?{...i,[f]:n}:i);
+  const item=qItems.find(i=>i.id===id);
+  if(f==='cost'&&n>0&&item?.detail?.includes('__NEEDS_PRICE__')){
+    const newDetail=item.detail.replace(/\s*—?\s*__NEEDS_PRICE__/g,'').replace(/__NEEDS_PRICE__/g,'').trim();
+    await dbPatch('qt_items','id=eq.'+id,{cost:n,detail:newDetail});
+    qItems=qItems.map(i=>i.id===id?{...i,cost:n,detail:newDetail}:i);
+  }else{
+    await dbPatch('qt_items','id=eq.'+id,{[f]:n});
+    qItems=qItems.map(i=>i.id===id?{...i,[f]:n}:i);
+  }
   renderQT();
 }
 async function applyMk(id,pct){
@@ -1658,6 +1676,11 @@ function exportPDF(){
   if(!qt){alert('กรุณาเลือกใบ QT ก่อนครับ');return;}
   const proj=projects.find(p=>p.id===qt.project_id);
   const allItems=qItems.filter(i=>i.quotation_id===activeQTId);
+  const zeroPrice=allItems.filter(i=>!(i.price||0));
+  if(zeroPrice.length){
+    const names=zeroPrice.map(i=>esc(i.item_role||i.name||'?')).join(', ');
+    if(!confirm(`⚠ มี ${zeroPrice.length} รายการที่ราคาเป็น 0:\n${names}\n\nต้องการ Export ต่อหรือไม่?`))return;
+  }
   const fmtN=n=>(Math.round(n||0)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
   const fmtD=d=>{if(!d)return '';try{const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}catch{return d;}};
 
@@ -1909,15 +1932,66 @@ function validateAIJson(){
   showAIPreview(data);
 }
 
+function _findSimilarCat(name){
+  if(!name)return null;
+  const nl=name.toLowerCase().trim();
+  return catalogue.find(c=>{
+    const r=(c.item_role||'').toLowerCase();
+    return r&&(r.includes(nl)||nl.includes(r))&&nl.length>3&&r.length>3;
+  })||null;
+}
+
 function showAIPreview(data){
-  const rows=data.items.map(item=>{
-    const cat=catalogue.find(c=>c.code===item.code);
-    const miss=!cat;
-    const low=!miss&&item.confidence==='low';
-    const badge=miss?`<span class="ai-miss-badge">ไม่พบใน Catalogue</span>`:low?`<span class="ai-badge">⚠ ควรตรวจ</span>`:'';
-    const catName=cat?`<strong>${esc(cat.item_role)}</strong>${cat.item_person?` <span style="color:var(--muted)">· ${esc(cat.item_person)}</span>`:''}`:'-';
-    const tr_cls=miss?'ai-miss':low?'ai-low':'';
-    return `<tr class="${tr_cls}">
+  _aiParsed=data;
+  // init state for NEW items
+  data.items.forEach((item,idx)=>{
+    if(item.code==='NEW'){
+      if(_aiNewCosts[idx]===undefined)_aiNewCosts[idx]=0;
+      if(_aiSaveCat[idx]===undefined)_aiSaveCat[idx]=true;
+    }
+  });
+
+  const rows=data.items.map((item,idx)=>{
+    const isNew=item.code==='NEW';
+    const cat=isNew?null:catalogue.find(c=>c.code===item.code);
+    const isMiss=!isNew&&!cat;
+    const isLow=!isNew&&cat&&item.confidence==='low';
+
+    if(isNew){
+      const sim=_findSimilarCat(item.name);
+      const simWarn=sim?`<div class="ai-sim-warn">มีรายการคล้ายกัน: <strong>${esc(sim.item_role)}</strong> (${esc(sim.code)}) <button class="btn ghost sm" onclick="aiUseExisting(${idx},'${sim.code}')">ใช้รายการนี้แทน</button></div>`:'';
+      const partOpts=['Pre-Production','Production','Post-Production'].map(p=>`<option value="${p}" ${(item.section===p||(!['Extra'].includes(item.section)&&p===item.section))?'selected':''}>${p.replace('Production','Pro').replace('Pre-','Pre-').replace('Post-','Post-')}</option>`).join('');
+      const saveCk=_aiSaveCat[idx]!==false;
+      return `<tr class="ai-new" data-idx="${idx}">
+        <td><span class="ai-new-badge">NEW</span></td>
+        <td>
+          <div style="font-weight:600">${esc(item.name||'')}</div>
+          <div style="font-size:11px;color:var(--muted)">${esc(item.unit||'')} ${esc(item.detail||'')}</div>
+          ${simWarn}
+          <label style="font-size:11px;display:flex;align-items:center;gap:4px;margin-top:3px;cursor:pointer">
+            <input type="checkbox" ${saveCk?'checked':''} onchange="_aiSaveCat[${idx}]=this.checked"/> บันทึกลง Catalogue ด้วย
+          </label>
+        </td>
+        <td><select class="ai-inp" onchange="_aiParsed.items[${idx}].section=this.value" style="width:120px">${partOpts}<option value="Extra" ${item.section==='Extra'?'selected':''}>Extra</option></select></td>
+        <td style="text-align:center">${item.qty||1}</td>
+        <td><input class="ai-inp" type="number" placeholder="ต้นทุน" value="${_aiNewCosts[idx]||''}" min="0" style="width:80px" onchange="_aiNewCosts[${idx}]=+this.value||0" oninput="_aiNewCosts[${idx}]=+this.value||0"/></td>
+      </tr>`;
+    }
+
+    if(isMiss){
+      return `<tr class="ai-miss" data-idx="${idx}">
+        <td style="font-weight:700;color:#B91C1C">${esc(item.code)}</td>
+        <td><span class="ai-miss-badge">ไม่พบใน Catalogue</span><br><span style="font-size:11px;color:var(--muted)">${esc(item.name||item.detail||'')}</span><br>
+          <button class="btn ghost sm" style="margin-top:3px;font-size:11px" onclick="aiConvertToNew(${idx})">+ แปลงเป็นรายการใหม่</button></td>
+        <td>${esc(item.section)}</td>
+        <td style="text-align:center">${item.qty||1}</td>
+        <td style="font-size:11px;color:var(--muted)">${esc(item.detail||'')}</td>
+      </tr>`;
+    }
+
+    const badge=isLow?`<span class="ai-badge">⚠ ควรตรวจ</span>`:'';
+    const catName=`<strong>${esc(cat.item_role)}</strong>${cat.item_person?` <span style="color:var(--muted)">· ${esc(cat.item_person)}</span>`:''}`;
+    return `<tr class="${isLow?'ai-low':''}" data-idx="${idx}">
       <td style="font-weight:700;color:var(--forest)">${esc(item.code)}</td>
       <td>${catName}${badge?'<br>'+badge:''}</td>
       <td>${esc(item.section)}</td>
@@ -1926,23 +2000,16 @@ function showAIPreview(data){
     </tr>`;
   }).join('');
 
-  const extraBox=data.suggested_extra_items?.length?`<div class="ai-note-box">
-    <h4>💡 AI แนะนำเพิ่ม (ไม่มีใน Catalogue)</h4>
-    ${data.suggested_extra_items.map(x=>`<div style="margin-bottom:4px">• <strong>${esc(x.name)}</strong>${x.why?` — <span style="color:var(--muted)">${esc(x.why)}</span>`:''}</div>`).join('')}
-  </div>`:'';
+  const missCount=data.items.filter((i,idx)=>i.code!=='NEW'&&!catalogue.find(c=>c.code===i.code)).length;
+  const newCount=data.items.filter(i=>i.code==='NEW').length;
+  const warnParts=[];
+  if(missCount)warnParts.push(`${missCount} รายการไม่พบ code — จะไม่นำเข้า (กด "แปลงเป็นรายการใหม่" เพื่อเพิ่มเองได้)`);
+  if(newCount)warnParts.push(`${newCount} รายการใหม่ — กรอกต้นทุนในตาราง (หรือปล่อยว่างไว้ก่อนได้)`);
+  const warnBanner=warnParts.length?`<div style="background:#FEF9C3;border:1px solid #FDE68A;border-radius:var(--rsm);padding:8px 12px;font-size:12px;color:#854D0E;margin-bottom:8px">${warnParts.join(' · ')}</div>`:'';
 
-  const assumBox=data.assumptions?.length?`<div class="ai-note-box">
-    <h4>📌 Assumptions</h4>
-    ${data.assumptions.map(a=>`<div>• ${esc(a)}</div>`).join('')}
-  </div>`:'';
-
-  const delivBox=data.deliverables?.length?`<div class="ai-note-box">
-    <h4>🎬 Deliverables</h4>
-    ${data.deliverables.map(d=>`<div>• ${esc(d)}</div>`).join('')}
-  </div>`:'';
-
-  const missCount=data.items.filter(i=>!catalogue.find(c=>c.code===i.code)).length;
-  const warnBanner=missCount?`<div style="background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--rsm);padding:8px 12px;font-size:12px;color:#B91C1C;margin-bottom:8px">⚠ พบ ${missCount} รายการที่ไม่มีรหัสตรงกันใน Catalogue — แถวสีแดงจะไม่ถูกนำเข้า</div>`:'';
+  const extraBox=data.suggested_extra_items?.length?`<div class="ai-note-box"><h4>💡 AI แนะนำเพิ่ม (ไม่มีใน Catalogue)</h4>${data.suggested_extra_items.map(x=>`<div style="margin-bottom:4px">• <strong>${esc(x.name)}</strong>${x.why?` — <span style="color:var(--muted)">${esc(x.why)}</span>`:''}</div>`).join('')}</div>`:'';
+  const assumBox=data.assumptions?.length?`<div class="ai-note-box"><h4>📌 Assumptions</h4>${data.assumptions.map(a=>`<div>• ${esc(a)}</div>`).join('')}</div>`:'';
+  const delivBox=data.deliverables?.length?`<div class="ai-note-box"><h4>🎬 Deliverables</h4>${data.deliverables.map(d=>`<div>• ${esc(d)}</div>`).join('')}</div>`:'';
 
   const projOpts=['<option value="">— สร้างโปรเจคใหม่จากชื่อใน JSON —</option>',...projects.filter(p=>!p.archived).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`)].join('');
 
@@ -1953,9 +2020,9 @@ function showAIPreview(data){
       <div><span style="color:var(--hint)">Package:</span> <strong>${esc(data.package_name||'')}</strong></div>
     </div>
     ${warnBanner}
-    <div style="overflow-x:auto;max-height:280px;overflow-y:auto;margin-bottom:10px">
+    <div style="overflow-x:auto;max-height:300px;overflow-y:auto;margin-bottom:10px">
       <table class="ai-prev-tbl">
-        <thead><tr><th>รหัส</th><th>รายการ (จาก Catalogue)</th><th>Section</th><th>Qty</th><th>รายละเอียด</th></tr></thead>
+        <thead><tr><th>รหัส</th><th>รายการ</th><th>Section</th><th>Qty</th><th>ต้นทุน/รายละเอียด</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
     </div>
@@ -1967,7 +2034,20 @@ function showAIPreview(data){
       <button class="btn" onclick="openAIImport()">← แก้ไข</button>
       <button class="btn primary" id="ai-confirm-btn">สร้างใบเสนอราคา</button>
     </div>`,true);
-  setTimeout(()=>{const btn=document.getElementById('ai-confirm-btn');if(btn)btn.onclick=()=>createQTFromAI(data);},50);
+  setTimeout(()=>{const btn=document.getElementById('ai-confirm-btn');if(btn)btn.onclick=()=>createQTFromAI(_aiParsed);},50);
+}
+
+function aiConvertToNew(idx){
+  const item=_aiParsed.items[idx];
+  item.code='NEW';
+  item.name=item.name||item.item_role||'';
+  _aiNewCosts[idx]=0;
+  _aiSaveCat[idx]=true;
+  showAIPreview(_aiParsed);
+}
+function aiUseExisting(idx,code){
+  _aiParsed.items[idx].code=code;
+  showAIPreview(_aiParsed);
 }
 
 async function createQTFromAI(data){
@@ -1996,16 +2076,56 @@ async function createQTFromAI(data){
   if(!qt)return alert('ไม่สามารถสร้างใบเสนอราคาได้');
   quotations.push(qt);activeQTId=qt.id;
 
-  const validItems=data.items.filter(i=>catalogue.find(c=>c.code===i.code));
-  for(const item of validItems){
-    const c=catalogue.find(x=>x.code===item.code);
-    const cost=c.cost_min||0;
-    const price=Math.round(cost*(1+mk/100));
-    const detail=[item.detail,item.reason?'[AI: '+item.reason+']':''].filter(Boolean).join(' — ');
+  const newCatAdded=[];
+
+  for(let idx=0;idx<data.items.length;idx++){
+    const item=data.items[idx];
+    const isNew=item.code==='NEW';
+    const cat=isNew?null:catalogue.find(c=>c.code===item.code);
+    if(!isNew&&!cat)continue; // ข้าม miss
+
+    let itemRole,itemName,itemPerson,itemUnit,cost,price,detail;
+
+    if(isNew){
+      // รายการใหม่
+      const rawCost=_aiNewCosts[idx]||0;
+      cost=rawCost;
+      price=cost>0?Math.round(cost*(1+mk/100)):0;
+      itemRole=item.name||'';
+      itemName='';
+      itemPerson='';
+      itemUnit=item.unit||'';
+      const detailParts=[item.detail,item.reason?'[AI: '+item.reason+']':'',cost===0?'__NEEDS_PRICE__':''].filter(Boolean);
+      detail=detailParts.join(' — ');
+
+      // บันทึกลง Catalogue ถ้าติ๊ก
+      if(_aiSaveCat[idx]!==false&&itemRole){
+        const newCatEntry=await dbPost('qt_catalogue',{
+          code:genCatCode(),
+          name:itemRole,
+          item_role:itemRole,
+          item_person:'',
+          part:['Extra'].includes(item.section)?'Pre-Production':item.section,
+          unit:itemUnit,
+          cost_min:cost,cost_max:cost,
+          notes:'นำเข้าจาก AI'
+        });
+        if(newCatEntry){catalogue.push(newCatEntry);newCatAdded.push(itemRole);}
+      }
+    }else{
+      cost=cat.cost_min||0;
+      price=Math.round(cost*(1+mk/100));
+      itemRole=cat.item_role||'';
+      itemName=cat.name||'';
+      itemPerson=cat.item_person||'';
+      itemUnit=cat.unit||'';
+      detail=[item.detail,item.reason?'[AI: '+item.reason+']':''].filter(Boolean).join(' — ');
+    }
+
     const ni=await dbPost('qt_items',{
       quotation_id:qt.id,section:item.section,
-      item_role:c.item_role||'',name:c.name||'',item_person:c.item_person||'',
-      unit:c.unit||'',qty:item.qty||1,cost,price,markup_pct:mk,detail,
+      item_role:itemRole,name:itemName,item_person:itemPerson,
+      unit:itemUnit,qty:item.qty||1,cost,price,markup_pct:mk,detail,
       is_extra:item.section==='Extra',io_type:'person'
     });
     if(ni)qItems.push(ni);
@@ -2013,9 +2133,24 @@ async function createQTFromAI(data){
 
   await dbPost('qt_ai_imports',{quotation_id:qt.id,raw_text:_aiRaw,parsed_json:data});
 
+  // reset state
+  _aiNewCosts={};_aiSaveCat={};_aiParsed=null;
+
   closeModal();
   renderSidebar();renderQT();
   showPage('qt',null);
+
+  // แจ้งเตือนถ้ามี catalogue ใหม่
+  if(newCatAdded.length){
+    setTimeout(()=>{
+      const qtMain=document.getElementById('qt-main');
+      if(!qtMain)return;
+      const banner=document.createElement('div');
+      banner.style.cssText='background:#FEFCE8;border:1px solid #FDE68A;border-radius:var(--rsm);padding:10px 14px;font-size:12px;color:#854D0E;display:flex;align-items:center;gap:10px;margin-bottom:8px';
+      banner.innerHTML=`<span>📂 Catalogue มีรายการใหม่ ${newCatAdded.length} รายการ — ส่งออกไฟล์ใหม่ไปอัปโหลดใน Project</span><button class="btn gold sm" onclick="exportCatalogueForAI();this.closest('div').remove()">📤 ส่งออกทันที</button><button onclick="this.closest('div').remove()" style="margin-left:auto;background:transparent;border:none;cursor:pointer;color:var(--hint);font-size:16px">×</button>`;
+      qtMain.insertBefore(banner,qtMain.firstChild);
+    },200);
+  }
 }
 
 /* CALCULATOR */
