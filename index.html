@@ -513,7 +513,7 @@ function parseAIItemFields(item){
   if(isOldFmt){
     let src=(nameHasTag?rawName:rawDetail).replace(tagPat,'').trim();
     let shortName;
-    const ci=src.indexOf(':');
+    const ci=src.search(/:\s/);
     shortName=(ci>=3&&ci<=60)?src.substring(0,ci).trim():src.split(/\s+/).slice(0,5).join(' ');
     return{shortName,model:rawModel,detailText:src,needsCheck:true};
   }
