@@ -507,17 +507,16 @@ function parseAIItemFields(item){
   const rawName=item.name||'';
   const rawDetail=item.detail||'';
   const rawModel=item.model||'';
-  const tagPat=/^\[(?:PHOTO|VIDEO|EDITING|AUDIO|MOTION|GRAPHIC|BTS)[^\]]*\]\s*/i;
-  const nameHasTag=tagPat.test(rawName);
-  const isOldFmt=nameHasTag||(!rawName&&rawDetail.length>0);
-  if(isOldFmt){
-    let src=(nameHasTag?rawName:rawDetail).replace(tagPat,'').trim();
-    let shortName;
-    const ci=src.search(/:\s/);
-    shortName=(ci>=3&&ci<=60)?src.substring(0,ci).trim():src.split(/\s+/).slice(0,5).join(' ');
-    return{shortName,model:rawModel,detailText:src,needsCheck:true};
+  // Format ใหม่: มีทั้ง name และ detail → ใช้ตามที่ส่งมา (เก็บป้าย [PHOTO] ไว้ในชื่อ)
+  if(rawName&&rawDetail){
+    return{shortName:rawName,model:rawModel,detailText:rawDetail,needsCheck:false};
   }
-  return{shortName:rawName,model:rawModel,detailText:rawDetail,needsCheck:false};
+  // Format เก่า: ทุกอย่างอัดอยู่ในช่องเดียว → แยกชื่อสั้นออกมาเอง
+  const tagPat=/^\[[A-Z\/ ]+\]\s*/i;
+  const src=(rawName||rawDetail).replace(tagPat,'').trim();
+  const ci=src.search(/:\s/);
+  const shortName=(ci>=3&&ci<=60)?src.substring(0,ci).trim():src.split(/\s+/).slice(0,5).join(' ');
+  return{shortName,model:rawModel,detailText:src,needsCheck:true};
 }
 
 /* ── Item Order (localStorage, no DB column needed) ── */
