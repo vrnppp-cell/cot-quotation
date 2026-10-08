@@ -950,7 +950,10 @@ function renderQT(){
         <button class="btn danger" onclick="delQT()">🗑 ลบ</button>
       </div>
       <div class="sum-actions-right">
-        <button class="btn gold" onclick="exportPDF()">⬇ Export PDF</button>
+        <div style="display:flex">
+          <button class="btn gold" onclick="exportPDF()" style="border-radius:var(--rsm) 0 0 var(--rsm);border-right:1px solid rgba(0,0,0,.18)" title="แบบเดิม (สีเขียว)">⬇ Export PDF</button>
+          <button class="btn gold" onclick="exportPDFMinimal()" style="border-radius:0 var(--rsm) var(--rsm) 0;padding:0 9px;font-size:11px;font-weight:600" title="แบบขาวดำ Minimal">B&W</button>
+        </div>
       </div>
     </div>
   </div>`;
@@ -1904,6 +1907,210 @@ ${qt.remark?`<div class="rmk"><strong>หมายเหตุ: </strong>${qt.re
   w.document.write(html);w.document.close();
   setTimeout(()=>{w.focus();w.print();},900);
 }
+/* ── PDF Export — แบบขาวดำ Minimal (ตามตัวอย่าง COT) ── */
+function exportPDFMinimal(){
+  const qt=quotations.find(q=>q.id===activeQTId);
+  if(!qt){alert('กรุณาเลือกใบ QT ก่อนครับ');return;}
+  const proj=projects.find(p=>p.id===qt.project_id);
+  const allItems=qItems.filter(i=>i.quotation_id===activeQTId);
+  const zeroPrice=allItems.filter(i=>!(i.price||0));
+  if(zeroPrice.length){
+    const names=zeroPrice.map(i=>esc(i.item_role||i.name||'?')).join(', ');
+    if(!confirm(`⚠ มี ${zeroPrice.length} รายการที่ราคาเป็น 0:\n${names}\n\nต้องการ Export ต่อหรือไม่?`))return;
+  }
+  const fmtN=n=>(Math.round(n||0)).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const fmtD=d=>{if(!d)return '';try{const[y,m,dd]=d.split('-');return `${dd}/${m}/${y}`;}catch{return d;}};
+
+  const SECS=[
+    {key:'Pre-Production',label:'Pre-Production'},
+    {key:'Production',label:'Production (Filming)'},
+    {key:'Post-Production',label:'Post-Production'}
+  ];
+  if(qt.show_extra)SECS.push({key:'Extra',label:'Extra / Add-on'});
+
+  const secData=SECS.map(sec=>{
+    const si=sec.key==='Extra'
+      ?sortedSecItems(activeQTId,'Extra',true)
+      :sortedSecItems(activeQTId,sec.key,false);
+    const total=si.reduce((a,i)=>a+(i.price||0)*(i.qty||1),0);
+    return{...sec,items:si,total};
+  }).filter(s=>s.items.length>0);
+
+  const sub=secData.reduce((a,s)=>a+s.total,0);
+  const mgmt=sub*(qt.mgmt_fee_pct/100);
+  const beforeVat=sub+mgmt;
+  const vat=qt.vat_enabled?beforeVat*.07:0;
+  const wht=qt.wht_enabled?beforeVat*.03:0;
+  const grand=beforeVat+vat-wht;
+
+  const logoHtml=CO.logo_url
+    ?`<img src="${CO.logo_url}" style="height:24pt;object-fit:contain" alt="logo"/>`
+    :`<span style="font-family:'Instrument Serif',serif;font-size:28pt;font-style:italic;letter-spacing:-1px;color:#1A1A1A;line-height:1">Cot</span>`;
+
+  // รวม deliverables จาก remark (บรรทัดที่ขึ้นต้นด้วย •)
+  const remarkLines=(qt.remark||'').split('\n');
+  const deliverLines=remarkLines.filter(l=>l.trim().startsWith('•'));
+  const remarkText=remarkLines.filter(l=>!l.trim().startsWith('•')).join('\n').trim();
+
+  let _rowN=0;
+  const secRows=secData.map(sec=>{
+    const hdr=`<tr><td colspan="6" style="padding:2mm 3mm;padding-top:4mm"><div style="background:#F2F2F2;border-radius:2px;padding:1.5mm 3mm;font-size:7pt;font-weight:700;color:#1A1A1A;letter-spacing:.3px;display:inline-block">${sec.label}</div></td></tr>`;
+    const rows=sec.items.map(i=>{
+      _rowN++;
+      const role=esc(i.item_role||i.name||'-');
+      const nameSub=(i.item_role&&i.name)?`<div style="font-size:6.5pt;color:#888;margin-top:.4mm">${esc(i.name)}</div>`:'';
+      const person=i.item_person?`<div style="font-size:6.5pt;color:#999;margin-top:.2mm">${esc(i.item_person)}</div>`:'';
+      const qty=i.qty||1;const unit=i.unit||'–';
+      const price=i.price||0;const total=price*qty;
+      return `<tr style="border-bottom:1px solid #ECECEC">
+        <td style="text-align:center;color:#BBB;font-size:6.5pt;padding:2mm 2.5mm;vertical-align:top">${_rowN}</td>
+        <td style="padding:2mm 2.5mm;vertical-align:top"><span style="font-size:7pt;font-weight:600">${role}</span>${nameSub}${person}</td>
+        <td style="text-align:center;padding:2mm 2.5mm;vertical-align:top;font-size:7pt;color:#555">${qty}</td>
+        <td style="text-align:left;padding:2mm 2.5mm;vertical-align:top;font-size:7pt;color:#777">${unit}</td>
+        <td style="text-align:right;padding:2mm 2.5mm;vertical-align:top;font-size:7pt">${fmtN(price)}</td>
+        <td style="text-align:right;padding:2mm 2.5mm;vertical-align:top;font-size:7pt;font-weight:600">${fmtN(total)}</td>
+      </tr>`;
+    }).join('');
+    const secSub=`<tr><td colspan="5" style="text-align:right;padding:1.5mm 2.5mm 3mm;font-size:6.5pt;color:#999;border-bottom:1px solid #CCC">รวม ${sec.label}</td><td style="text-align:right;padding:1.5mm 2.5mm 3mm;font-size:7pt;font-weight:700;border-bottom:1px solid #CCC">${fmtN(sec.total)}</td></tr>`;
+    return hdr+rows+secSub;
+  }).join('');
+
+  const deliverHtml=deliverLines.length
+    ?`<div style="margin-bottom:4mm"><div style="font-size:7pt;font-weight:700;margin-bottom:2mm">สิ่งที่ลูกค้าได้รับ</div>${deliverLines.map(l=>`<div style="font-size:7pt;color:#333;line-height:1.6">${esc(l.trim())}</div>`).join('')}</div>`
+    :'';
+
+  const html=`<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"/>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
+<style>
+${_FC}
+@page{size:A4 portrait;margin:10mm 10mm 10mm 10mm}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{font-family:'FCS','Sarabun',sans-serif;font-weight:300;font-size:7pt;color:#1A1A1A;background:#fff;line-height:1.6}
+.hdr{display:grid;grid-template-columns:1fr auto;gap:6mm;align-items:flex-start;margin-bottom:5mm;padding-bottom:4mm;border-bottom:1.5px solid #1A1A1A}
+.co-block{margin-top:3mm}
+.co-name{font-size:8.5pt;font-weight:700;margin-bottom:1.5mm;color:#1A1A1A}
+.co-info{font-size:6.5pt;color:#666;line-height:1.7}
+.qt-block{text-align:right}
+.qt-ttl{font-family:'Instrument Serif',serif;font-size:20pt;font-weight:400;line-height:1;color:#1A1A1A}
+.qt-sub{font-size:6.5pt;color:#999;margin-top:.5mm;margin-bottom:3mm;font-style:italic}
+.qt-meta{display:grid;grid-template-columns:auto auto;gap:.5mm 5mm;justify-content:end;font-size:6.5pt}
+.qt-meta .lbl{color:#888;text-align:right}
+.qt-meta .val{color:#1A1A1A;font-weight:500;text-align:right}
+.cli-block{margin-bottom:3mm;padding-bottom:3mm;border-bottom:1px solid #E0E0E0}
+.cli-lbl{font-size:6pt;color:#999;text-transform:uppercase;letter-spacing:.5px;margin-bottom:1mm}
+.cli-name{font-size:9pt;font-weight:700;color:#1A1A1A;margin-bottom:.5mm}
+.cli-proj{font-size:7pt;color:#555}
+.rmk-block{border-left:2.5px solid #1A1A1A;padding:2mm 3.5mm;margin-bottom:4mm;font-size:7pt;color:#555;line-height:1.6}
+table.it{width:100%;border-collapse:collapse;margin-bottom:3mm}
+table.it thead tr{border-bottom:1.5px solid #1A1A1A}
+table.it thead th{color:#1A1A1A;padding:2mm 2.5mm 2.5mm;font-size:7pt;font-weight:600;border:none}
+table.it thead th.r{text-align:right}
+table.it thead th.c{text-align:center}
+table.it tbody tr{border-bottom:1px solid #ECECEC}
+table.it tbody td{vertical-align:top;font-size:7pt}
+table.it tbody td.r{text-align:right}
+table.it tbody td.c{text-align:center}
+.bottom-row{display:grid;grid-template-columns:1fr auto;gap:8mm;margin-bottom:6mm;align-items:start}
+table.sum{width:64mm;border-collapse:collapse}
+table.sum td{padding:1.2mm 0;font-size:7pt}
+table.sum .lbl{color:#666;font-weight:300;padding-right:6mm}
+table.sum .val{text-align:right;font-weight:400}
+table.sum tr.divider td{border-top:1px solid #DDD;padding-top:2.5mm;margin-top:1mm}
+table.sum tr.grand td{border-top:1.5px solid #1A1A1A;padding-top:2.5mm;font-size:9.5pt;font-weight:700;color:#1A1A1A}
+table.sum tr.grand .val{font-size:9.5pt}
+.notes-block{font-size:7pt;color:#555;line-height:1.6;white-space:pre-wrap}
+.sig{display:grid;grid-template-columns:1fr 1fr;gap:12mm;margin-top:8mm;border-top:1px solid #E0E0E0;padding-top:5mm}
+.sig-name{font-size:7.5pt;font-weight:600;margin-bottom:.5mm}
+.sig-role{font-size:6.5pt;color:#888;margin-bottom:7mm}
+.sig-line{border-bottom:1px solid #CCC;margin-bottom:2mm}
+.sig-lbl{font-size:6pt;color:#CCC;display:flex;justify-content:space-between}
+.footer{text-align:center;font-size:6pt;color:#CCC;margin-top:5mm}
+</style></head><body>
+
+<div class="hdr">
+  <div>
+    ${logoHtml}
+    <div class="co-block">
+      <div class="co-name">${CO.name}</div>
+      <div class="co-info">${CO.addr}<br/>โทร: ${CO.tel} &nbsp;|&nbsp; อีเมล: ${CO.email}<br/>เลขประจำตัวผู้เสียภาษี: ${CO.tax}</div>
+    </div>
+  </div>
+  <div class="qt-block">
+    <div class="qt-ttl">Quotation</div>
+    <div class="qt-sub">ใบเสนอราคา / ใบแจ้งหนี้</div>
+    <div class="qt-meta">
+      <span class="lbl">เลขที่</span><span class="val">${qt.qt_number||'—'}</span>
+      <span class="lbl">วันที่</span><span class="val">${fmtD(qt.qt_date)}</span>
+      ${qt.salesperson?`<span class="lbl">ผู้ดูแล</span><span class="val">${qt.salesperson}</span>`:''}
+      <span class="lbl">สถานะ</span><span class="val">${qt.status==='final'?'Final':qt.status==='sent'?'Sent':'Draft'}</span>
+    </div>
+  </div>
+</div>
+
+<div class="cli-block">
+  <div class="cli-lbl">ลูกค้า / CLIENT</div>
+  <div class="cli-name">${qt.client_name||'—'}</div>
+  ${proj?`<div class="cli-proj">โปรเจค: ${proj.name}${qt.version_name?' — '+qt.version_name:''}</div>`:''}
+</div>
+
+${remarkText?`<div class="rmk-block">${esc(remarkText)}</div>`:''}
+
+<table class="it">
+  <thead>
+    <tr>
+      <th class="c" style="width:7mm">#</th>
+      <th style="text-align:left">รายการ</th>
+      <th class="c" style="width:13mm">จำนวน</th>
+      <th class="c" style="width:16mm">หน่วย</th>
+      <th class="r" style="width:26mm">ราคา/หน่วย (฿)</th>
+      <th class="r" style="width:26mm">ยอดรวม (฿)</th>
+    </tr>
+  </thead>
+  <tbody>${secRows}</tbody>
+</table>
+
+${qt.mgmt_fee_pct>0?`<div style="text-align:right;font-size:6.5pt;color:#888;margin-bottom:2mm">Management Fee ${qt.mgmt_fee_pct}% &nbsp;<span style="font-weight:500;color:#555">${fmtN(mgmt)} บาท</span></div>`:''}
+
+<div class="bottom-row">
+  <div>
+    ${deliverHtml}
+    ${remarkText?`<div style="font-size:7pt;font-weight:700;margin-bottom:1.5mm">หมายเหตุ</div><div class="notes-block">${esc(remarkText)}</div>`:''}
+  </div>
+  <table class="sum">
+    <tr><td class="lbl">รวมก่อน VAT</td><td class="val">${fmtN(beforeVat)}</td></tr>
+    ${qt.vat_enabled?`<tr><td class="lbl">VAT 7%</td><td class="val">${fmtN(vat)}</td></tr>`:''}
+    ${qt.wht_enabled?`<tr><td class="lbl">หัก ณ ที่จ่าย 3%</td><td class="val">- ${fmtN(wht)}</td></tr>`:''}
+    <tr class="divider"><td colspan="2"></td></tr>
+    <tr class="grand"><td class="lbl">ยอดชำระสุดท้าย</td><td class="val">${fmtN(grand)} บาท</td></tr>
+  </table>
+</div>
+
+<div class="sig">
+  <div>
+    <div class="sig-name">${qt.client_name||'ลูกค้า'}</div>
+    <div class="sig-role">ผู้ว่าจ้าง / Authorized Signatory</div>
+    <div class="sig-line"></div>
+    <div class="sig-lbl"><span>ลายมือชื่อ</span><span>วันที่</span></div>
+  </div>
+  <div>
+    <div class="sig-name">${CO.name_en||CO.name}</div>
+    <div class="sig-role">ผู้รับจ้าง / Authorized Signatory</div>
+    <div class="sig-line"></div>
+    <div class="sig-lbl"><span>ลายมือชื่อ</span><span>วันที่</span></div>
+  </div>
+</div>
+
+<div class="footer">© ${new Date().getFullYear()} ${CO.name_en||'COT'} — All Rights Reserved.</div>
+
+</body></html>`;
+
+  const w=window.open('','_blank','width=820,height=1160');
+  if(!w){alert('กรุณาอนุญาต Popup ในเบราว์เซอร์ก่อนครับ');return;}
+  w.document.write(html);w.document.close();
+  setTimeout(()=>{w.focus();w.print();},900);
+}
+
 function closeModal(){document.getElementById('moverlay').classList.remove('open');document.getElementById('modal').classList.remove('wide');}
 function openModal(html,wide){const m=document.getElementById('modal');m.innerHTML=html;if(wide)m.classList.add('wide');else m.classList.remove('wide');document.getElementById('moverlay').classList.add('open');}
 
