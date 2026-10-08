@@ -507,16 +507,17 @@ function parseAIItemFields(item){
   const rawName=item.name||'';
   const rawDetail=item.detail||'';
   const rawModel=item.model||'';
-  // Format ใหม่: มีทั้ง name และ detail → ใช้ตามที่ส่งมา (เก็บป้าย [PHOTO] ไว้ในชื่อ)
-  if(rawName&&rawDetail){
-    return{shortName:rawName,model:rawModel,detailText:rawDetail,needsCheck:false};
+  const tagPat=/^\[(?:PHOTO|VIDEO|EDITING|AUDIO|MOTION|GRAPHIC|BTS)[^\]]*\]\s*/i;
+  const nameHasTag=tagPat.test(rawName);
+  const isOldFmt=nameHasTag||(!rawName&&rawDetail.length>0);
+  if(isOldFmt){
+    let src=(nameHasTag?rawName:rawDetail).replace(tagPat,'').trim();
+    let shortName;
+    const ci=src.search(/:\s/);
+    shortName=(ci>=3&&ci<=60)?src.substring(0,ci).trim():src.split(/\s+/).slice(0,5).join(' ');
+    return{shortName,model:rawModel,detailText:src,needsCheck:true};
   }
-  // Format เก่า: ทุกอย่างอัดอยู่ในช่องเดียว → แยกชื่อสั้นออกมาเอง
-  const tagPat=/^\[[A-Z\/ ]+\]\s*/i;
-  const src=(rawName||rawDetail).replace(tagPat,'').trim();
-  const ci=src.search(/:\s/);
-  const shortName=(ci>=3&&ci<=60)?src.substring(0,ci).trim():src.split(/\s+/).slice(0,5).join(' ');
-  return{shortName,model:rawModel,detailText:src,needsCheck:true};
+  return{shortName:rawName,model:rawModel,detailText:rawDetail,needsCheck:false};
 }
 
 /* ── Item Order (localStorage, no DB column needed) ── */
@@ -818,6 +819,7 @@ function renderQT(){
         <input class="ie" value="${esc(item.item_role)}" placeholder="${isP?'ตำแหน่ง *':'ชนิด *'}" onblur="patchItemLocal('${item.id}','item_role',this.value)" style="font-weight:600;font-size:12px"/>
         ${needsPrice?'<span class="ai-no-price">⚠ ยังไม่ใส่ราคา</span>':''}
         <input class="ie sm-txt" value="${esc(item.name)}" placeholder="คำอธิบายเพิ่มเติม..." onblur="patchItemLocal('${item.id}','name',this.value)"/>
+        <input class="ie sm-txt" value="${esc(item.unit||'')}" placeholder="unit (day/lot...)" onblur="patchItemLocal('${item.id}','unit',this.value)" style="font-size:10px;color:var(--muted)"/>
       </div>
       <input class="ie" value="${esc(item.item_person)}" placeholder="${isP?'ชื่อ':'รุ่น/Model'}" onblur="patchItemLocal('${item.id}','item_person',this.value)" style="font-size:12px"/>
       <input class="ie num" value="${item.qty||1}" onblur="patchItemNum('${item.id}','qty',this.value)" style="width:100%"/>
